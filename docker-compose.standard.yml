@@ -1,0 +1,110 @@
+services:
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.3
+    container_name: elasticsearch
+
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+
+    ports:
+      - "9200:9200"
+
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+    mem_limit: 2g
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.5.3
+    container_name: kibana
+
+    environment:
+      # Normal bridge networking: reach elasticsearch by its service name.
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - NODE_OPTIONS=--max-old-space-size=768
+      - INTERACTIVESETUP_ENABLED=false
+
+    ports:
+      - "5601:5601"
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+    mem_limit: 1500m
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: postgres
+
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Mount as a single file so it doesn't hide the postgis image's own
+      # init scripts (which auto-run `CREATE EXTENSION postgis`).
+      - ./initdb/classicmodels.sql:/docker-entrypoint-initdb.d/20_classicmodels.sql
+
+    mem_limit: 512m
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+
+    ports:
+      - "5050:80"
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+    depends_on:
+      - postgres
+
+    mem_limit: 512m
+
+  migrate:
+    build: .
+    container_name: migrate
+
+    environment:
+      # Normal bridge networking: reach both services by their service name.
+      - PG_URL=jdbc:postgresql://postgres:5432/postgres
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=password
+      - ES_URL=http://elasticsearch:9200
+
+    depends_on:
+      postgres:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+
+    # Not started by `docker compose up` — run it explicitly with:
+    #   docker compose run --rm migrate
+    profiles:
+      - tools
+
+volumes:
+  esdata:
+  pgdata:
+  pgadmin_data:

@@ -21,11 +21,52 @@ migrates it into Elasticsearch for exploration in Kibana.
   (this runs automatically the **first time** the `postgres` volume is
   created — see Troubleshooting if you add it later)
 
+## Which compose file to use
+
+This project ships **two** compose files, because container-to-container
+bridge networking doesn't work reliably inside GitHub Codespaces
+(a nested Docker-in-Docker environment), but works normally everywhere
+else.
+
+| Environment | File | Notes |
+|---|---|---|
+| **GitHub Codespaces** | `docker-compose.yml` | Uses network-sharing workarounds (`network_mode: "service:X"`, `network_mode: "host"`) to route around Codespaces' bridge-network issue |
+| **Docker Desktop (macOS/Windows), native Linux** | `docker-compose.standard.yml` | Normal bridge networking — services reach each other by service name (`postgres`, `elasticsearch`), as Docker intends |
+
+To use the standard file, either rename it before running commands:
+
+```bash
+mv docker-compose.standard.yml docker-compose.yml
+```
+
+or point every command at it explicitly with `-f`:
+
+```bash
+docker compose -f docker-compose.standard.yml up -d
+docker compose -f docker-compose.standard.yml run --rm migrate
+```
+
+**Don't mix the two** — pick one file for a given environment. Volume
+names, container names, and behavior are otherwise identical between
+them; only the networking approach and a couple of port mappings differ
+(e.g. pgAdmin listens on `80` internally in the standard file instead
+of `5050`, since it's no longer sharing postgres's network namespace).
+
+**Docker Desktop specific notes:**
+- **macOS/Windows:** open **Docker Desktop → Settings → Resources** and
+  make sure enough RAM is allocated to the Docker VM (4GB+ recommended
+  for this whole stack) — containers share that VM's memory pool, not
+  the host's directly.
+- **Windows with WSL2 backend** (the default): run `docker compose`
+  commands from a **WSL2 terminal**, not PowerShell directly, for the
+  most reliable volume-mount behavior with the `./initdb/...` path.
+
 ## Project layout
 
 ```
 .
-├── docker-compose.yml
+├── docker-compose.yml              # for GitHub Codespaces
+├── docker-compose.standard.yml     # for Docker Desktop / native Linux
 ├── Dockerfile
 ├── pom.xml
 ├── initdb/
@@ -96,16 +137,22 @@ curl http://localhost:9200/_cat/indices?v
 
 **Container-to-container connections time out (e.g. `migrate` can't
 reach `postgres`, or `kibana` can't reach `elasticsearch`).**
-In some Docker-in-Docker environments (notably GitHub Codespaces),
-traffic between containers on a bridge network doesn't route
-correctly. The fix used throughout this compose file:
+This applies to `docker-compose.yml` (the Codespaces variant) only. In
+some Docker-in-Docker environments (notably GitHub Codespaces), traffic
+between containers on a bridge network doesn't route correctly. The
+fix used throughout that file:
 - `kibana` shares `elasticsearch`'s network (`network_mode:
   "service:elasticsearch"`) and connects via `localhost`.
 - `pgadmin` shares `postgres`'s network the same way.
 - `migrate` uses `network_mode: "host"` and connects via `localhost`
   to the published ports.
 This is why ports for `kibana`/`pgadmin` are declared on the service
-they share a network with, not on themselves.
+they share a network with, not on themselves. If you hit this same
+symptom on Docker Desktop or native Linux (using
+`docker-compose.standard.yml`), it's not this issue — check that all
+services are actually on the same Docker network (`docker network
+inspect <project>_default`) and that container names match what's used
+in connection strings.
 
 **`docker exec -it postgres psql ... "\dt classicmodels.*"` shows no
 tables, even though the schema exists.**
