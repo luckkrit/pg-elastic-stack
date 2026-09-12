@@ -1,0 +1,120 @@
+services:
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.3
+    container_name: elasticsearch
+
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+
+    ports:
+      - "9200:9200"
+      - "5601:5601"
+
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+    mem_limit: 2g
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.5.3
+    container_name: kibana
+
+    environment:
+      - ELASTICSEARCH_HOSTS=http://localhost:9200
+      - NODE_OPTIONS=--max-old-space-size=768
+      - INTERACTIVESETUP_ENABLED=false
+
+    network_mode: "service:elasticsearch"
+
+    depends_on:
+      - elasticsearch
+
+    mem_limit: 1500m
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: postgres
+
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+
+    ports:
+      - "5432:5432"
+      - "5050:5050"
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Mount your dump as a SINGLE FILE, not the whole ./initdb folder —
+      # mounting the whole folder would hide the postgis image's own
+      # init scripts that auto-run `CREATE EXTENSION postgis`.
+      - ./initdb/classicmodels.sql:/docker-entrypoint-initdb.d/20_classicmodels.sql
+
+    mem_limit: 512m
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_LISTEN_PORT=5050
+      - PGADMIN_CONFIG_SERVER_MODE=False
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+    # Shares postgres's network namespace (same trick used for kibana +
+    # elasticsearch). This avoids the bridge-network routing issue AND
+    # lets Docker publish the port normally, so Codespaces auto-detects
+    # and forwards it — unlike network_mode: host, which publishes nothing.
+    network_mode: "service:postgres"
+
+    depends_on:
+      - postgres
+
+    mem_limit: 512m
+
+  migrate:
+    build: .
+    container_name: migrate
+
+    environment:
+      - PG_URL=jdbc:postgresql://localhost:5432/postgres
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=password
+      - ES_URL=http://localhost:9200
+
+    # Bridge networking between containers doesn't route properly in this
+    # Codespaces environment (same root cause as the earlier Kibana issue).
+    # Host networking sidesteps it entirely by using the published ports
+    # via localhost, the same way it worked when running directly on the host.
+    network_mode: "host"
+
+    depends_on:
+      postgres:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+
+    # Not started by `docker compose up` — run it explicitly with:
+    #   docker compose run --rm migrate
+    profiles:
+      - tools
+
+volumes:
+  esdata:
+  pgdata:
+  pgadmin_data:
