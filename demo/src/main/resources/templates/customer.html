@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Customers')}"></head>
+<body>
+    <nav><a th:href="@{/}">Home</a></nav>
+    <main>
+        <h1 class="text-2xl font-bold">Customers</h1>
+        <table th:fragment="customerTable" class="w-full border-collapse">
+            <tr class="border-b"><th>Number</th><th>Name</th><th>City</th></tr>
+            <tr class="border-b" th:each="customer : ${customers}">
+                <td th:text="${customer.customernumber}"></td>
+                <td th:text="${customer.customername}"></td>
+                <td th:text="${customer.city}"></td>
+            </tr>
+        </table>
+    </main>
+</body>
+</html>

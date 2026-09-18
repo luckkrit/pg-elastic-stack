@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Home')}"></head>
+<body>
+    <nav><a th:href="@{/}">Home</a></nav>
+    <main>
+        <h1 class="text-2xl font-bold">Welcome home</h1>
+        <p>Welcome to the application.</p>
+
+        <h2 class="text-xl font-semibold mt-4">Recent Customersaaaasas</h2>
+        <div th:insert="~{customer :: customerTable}"></div>
+    </main>
+</body>
+</html>
