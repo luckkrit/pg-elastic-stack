@@ -1,5 +1,9 @@
+
 services:
 
+  # =====================================================
+  # Elasticsearch
+  # =====================================================
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.5.3
     container_name: elasticsearch
@@ -10,39 +14,42 @@ services:
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
 
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
 
     volumes:
       - esdata:/usr/share/elasticsearch/data
 
-    mem_limit: 2g
-
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200 >/dev/null || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 40s
 
+
+  # =====================================================
+  # Kibana
+  # =====================================================
   kibana:
     image: docker.elastic.co/kibana/kibana:9.5.3
     container_name: kibana
 
     environment:
-      # Normal bridge networking: reach elasticsearch by its service name.
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - NODE_OPTIONS=--max-old-space-size=768
       - INTERACTIVESETUP_ENABLED=false
 
     ports:
-      - "5601:5601"
+      - "127.0.0.1:5601:5601"
 
     depends_on:
       elasticsearch:
         condition: service_healthy
 
-    mem_limit: 1500m
 
+  # =====================================================
+  # PostgreSQL + PostGIS
+  # =====================================================
   postgres:
     image: postgis/postgis:16-3.4
     container_name: postgres
@@ -53,16 +60,23 @@ services:
       - POSTGRES_PASSWORD=password
 
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Mount as a single file so it doesn't hide the postgis image's own
-      # init scripts (which auto-run `CREATE EXTENSION postgis`).
-      - ./initdb/classicmodels.sql:/docker-entrypoint-initdb.d/20_classicmodels.sql
+      - ./initdb/classicmodels.sql:/docker-entrypoint-initdb.d/20_classicmodels.sql:ro
 
-    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
+
+  # =====================================================
+  # pgAdmin 4
+  # =====================================================
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
@@ -72,22 +86,25 @@ services:
       - PGADMIN_DEFAULT_PASSWORD=admin
 
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
 
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
-    mem_limit: 512m
 
+  # =====================================================
+  # Java Migration Application
+  # PostgreSQL -> Elasticsearch
+  # =====================================================
   migrate:
     build: .
     container_name: migrate
 
     environment:
-      # Normal bridge networking: reach both services by their service name.
       - PG_URL=jdbc:postgresql://postgres:5432/postgres
       - PG_USERNAME=postgres
       - PG_PASSWORD=password
@@ -95,15 +112,19 @@ services:
 
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       elasticsearch:
         condition: service_healthy
 
-    # Not started by `docker compose up` — run it explicitly with:
-    #   docker compose run --rm migrate
+    # Run manually:
+    # docker compose run --rm migrate
     profiles:
       - tools
 
+
+# =====================================================
+# Persistent Volumes
+# =====================================================
 volumes:
   esdata:
   pgdata:
