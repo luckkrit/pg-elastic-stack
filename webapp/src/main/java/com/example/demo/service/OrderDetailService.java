@@ -55,7 +55,7 @@ public class OrderDetailService {
         d.setId(id);
         d.setOrders(order);
         d.setProducts(product);
-        d.setPriceeach(product.getMsrp());        // see the note below
+        d.setPriceeach(product.getMsrp());      
         d.setOrderlinenumber((short) nextLine);
         return d;
     }

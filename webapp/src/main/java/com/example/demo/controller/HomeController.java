@@ -19,6 +19,7 @@ import com.example.demo.repository.OrderDetailRepository;
 import com.example.demo.repository.OrderRepository;
 import com.example.demo.repository.ProductRepository;
 import com.example.demo.service.OrderDetailService;
+import com.example.demo.elasticsearch.ProductSearchService;
 
 @Controller
 public class HomeController {
@@ -28,15 +29,17 @@ public class HomeController {
 	private final OrderDetailRepository orderDetailRepository;
 	private final ProductRepository productRepository;
 	private final OrderDetailService orderDetailService;
+	private final ProductSearchService productSearchService;
 
 	public HomeController(CustomerRepository customerRepository, OrderRepository orderRepository,
 			OrderDetailRepository orderDetailRepository, ProductRepository productRepository,
-			OrderDetailService orderDetailService) {
+			OrderDetailService orderDetailService, ProductSearchService productSearchService) {
 		this.customerRepository = customerRepository;
 		this.orderRepository = orderRepository;
 		this.orderDetailRepository = orderDetailRepository;
 		this.productRepository = productRepository;
 		this.orderDetailService = orderDetailService;
+		this.productSearchService = productSearchService;
 	}
 
 	@GetMapping("/")
@@ -97,9 +100,8 @@ public class HomeController {
 			@RequestParam(defaultValue = "false") boolean es, Model model) {
 		List<?> results = List.of();
 		if (q != null && !q.isBlank()) {
-			// results = es ? productSearchRepository.search(q.trim())
-			// : productRepository.search(q.trim());
-			results = productRepository.search(q.trim());
+			results = es ? productSearchService.search(q.trim())
+			: productRepository.search(q.trim());
 		}
 		model.addAttribute("results", results);
 		model.addAttribute("q", q);
