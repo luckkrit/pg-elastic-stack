@@ -1,0 +1,67 @@
+<html th:replace="~{layout :: layout('Order', ~{::body})}" xmlns:th="http://www.thymeleaf.org">
+
+<body>
+    <div class="breadcrumbs text-sm">
+        <ul>
+            <li><a class="btn btn-link" th:href="@{/customer/{no}/order(no=${customer.customernumber})}">Back</a></li>
+        </ul>
+    </div>
+    <main>
+
+        <h2 class="text-xl font-semibold">Order Details of [[${customer.customername}]], Order [[${order.ordernumber}]]
+        </h2>
+        <div class="max-h-[220px] overflow-y-auto">
+            <table class="table h-[220px] scrollbar-auto">
+                <thead class="sticky top-0 bg-base-100">
+                    <tr class="border-b">
+                        <th>Order Line number</th>
+                        <th>Product Code</th>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Price Each</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b" th:each="orderDetail : ${orderDetails}">
+                        <td th:text="${orderDetail.orderlinenumber}"></td>
+                        <td th:text="${orderDetail.products.productcode}"></td>
+                        <td th:text="${orderDetail.products.productname}"></td>
+                        <!-- <td th:text="${orderDetail.quantityordered}">-</td> -->
+                         <td>
+                            <div class="flex items-center gap-2">
+
+                                <form th:action="@{/customer/{no}/order/{ono}/lines(no=${customer.customernumber},ono=${order.ordernumber})}" method="post" >
+                                    <input type="hidden" name="productcode" th:value="${orderDetail.products.productcode}">
+                                    <input type="hidden" name="delta" th:value="-1">
+                                    <input type="hidden" name="q" th:value="${q}" >
+                                    <input type="hidden" name="es" th:value="${es}">
+                                    <button type="submit" class="btn btn-neutral btn-sm btn-square">-</button>
+                                </form>
+                                <span th:text="${orderDetail.quantityordered}">-</span>
+                                <form th:action="@{/customer/{no}/order/{ono}/lines(no=${customer.customernumber},ono=${order.ordernumber})}" method="post" >
+                                    <input type="hidden" name="productcode" th:value="${orderDetail.products.productcode}">
+                                    <input type="hidden" name="delta" th:value="1">
+                                    <input type="hidden" name="q" th:value="${q}" >
+                                    <input type="hidden" name="es" th:value="${es}">
+                                    <button type="submit" class="btn btn-neutral btn-sm btn-square">+</button>
+                                </form>
+                            </div>
+                         </td>
+                        <td th:text="${orderDetail.priceeach}">-</td>
+                        <td
+                            th:text="'$' +${#numbers.formatDecimal(orderDetail.quantityordered * orderDetail.priceeach, 1, 'COMMA', 2, 'POINT')}">
+                            -</td>
+
+                    </tr>
+                </tbody>
+
+            </table>
+
+        </div>
+        <div th:replace="~{product_orderdetail :: productTable}"></div>
+
+    </main>
+</body>
+
+</html>

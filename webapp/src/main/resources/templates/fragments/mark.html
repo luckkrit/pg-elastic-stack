@@ -1,0 +1,10 @@
+<style>
+    mark {
+        background-color: #000;
+        color: #fff;
+    }
+</style>
+<script th:inline="javascript">
+    const query = /*[[${q}]]*/ '';
+    new Mark(document.querySelector('#results')).mark(query.split(/\s+/));
+</script>
