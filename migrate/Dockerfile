@@ -8,5 +8,5 @@ RUN mvn -q package -DskipTests
 # --- Stage 2: run it with a lightweight JRE ---
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=build /app/target/pg-to-es-migration-1.0.0.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]

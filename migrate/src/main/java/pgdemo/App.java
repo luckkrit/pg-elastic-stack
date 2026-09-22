@@ -34,35 +34,61 @@ import org.elasticsearch.client.RestClient;
 public class App {
 
     private static final String PG_URL = System.getenv().getOrDefault(
-            "PG_URL", "jdbc:postgresql://localhost:5432/postgres");
+            "PG_URL", "jdbc:postgresql://127.0.0.1:5432/postgres");
     private static final String PG_USERNAME = System.getenv().getOrDefault("PG_USERNAME", "postgres");
     private static final String PG_PASSWORD = System.getenv().getOrDefault("PG_PASSWORD", "password");
     private static final String ES_URL = System.getenv().getOrDefault("ES_URL", "http://localhost:9200");
 
     // ---------- Step 0: mapping definition ----------
 
+    // NOTE: keys must be lowercase — fetchRows() lowercases every JDBC column name
+    // (meta.getColumnName(i).toLowerCase()), so a mapping key like "productCode" would
+    // never match the actual document field "productcode" and would silently never apply.
     public static Map<String, Property> getProductMapping() {
         Map<String, Property> properties = new LinkedHashMap<>();
-        properties.put("productCode", new Property.Builder()
+        properties.put("productcode", new Property.Builder()
                 .keyword(new KeywordProperty.Builder().build())
                 .build());
-        properties.put("productName", new Property.Builder()
+        properties.put("productname", new Property.Builder()
                 .text(new TextProperty.Builder().build())
                 .build());
-        properties.put("productLine", new Property.Builder()
+        properties.put("productline", new Property.Builder()
                 .keyword(new KeywordProperty.Builder().build())
                 .build());
-        properties.put("productDescription", new Property.Builder()
+        properties.put("productdescription", new Property.Builder()
                 .text(new TextProperty.Builder().build())
                 .build());
-        properties.put("buyPrice", new Property.Builder()
+        properties.put("productscale", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("productvendor", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("buyprice", new Property.Builder()
                 .float_(new FloatNumberProperty.Builder().build())
                 .build());
         properties.put("msrp", new Property.Builder()
                 .float_(new FloatNumberProperty.Builder().build())
                 .build());
-        properties.put("quantityInStock", new Property.Builder()
+        properties.put("quantityinstock", new Property.Builder()
                 .integer(new IntegerNumberProperty.Builder().build())
+                .build());
+        return properties;
+    }
+
+    public static Map<String, Property> getCustomerMapping() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put("customernumber", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("customername", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("city", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("country", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
                 .build());
         return properties;
     }
@@ -104,6 +130,10 @@ public class App {
         if (value instanceof java.math.BigDecimal) return value;
         if (value instanceof Double d && (d.isNaN() || d.isInfinite())) return null;
         if (value instanceof Float f && (f.isNaN() || f.isInfinite())) return null;
+        // PostGIS columns (e.g. customerlocation) come back as PGobject via the plain postgresql
+        // driver — Jackson can't serialize that class, so pull out its raw string value (the
+        // WKB/EWKB hex representation) instead of passing the driver object straight through.
+        if (value instanceof org.postgresql.util.PGobject pg) return pg.getValue();
         return value;
     }
 
@@ -216,6 +246,7 @@ public class App {
 
     public static void main(String[] args) {
         migrateTable("products", "classicmodels.products", List.of("productcode"), getProductMapping());
+        migrateTable("customers", "classicmodels.customers", List.of("customernumber"), getCustomerMapping());
     }
 
 }
