@@ -1,76 +1,82 @@
 package pgdemo;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.sql.*;
-import java.util.*;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import co.elastic.clients.elasticsearch.indices.CreateIndexRequest;
+import co.elastic.clients.elasticsearch.indices.ExistsRequest;
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.mapping.FloatNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.IntegerNumberProperty;
+import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
+import co.elastic.clients.elasticsearch._types.mapping.Property;
+import co.elastic.clients.elasticsearch._types.mapping.TextProperty;
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.ElasticsearchTransport;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
+import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
 
 public class App {
 
-    // ---------- PostgreSQL connection ----------
-    // Falls back to localhost defaults (for running outside Docker);
-    // inside docker-compose, these get overridden via environment variables.
-    static final String PG_URL = System.getenv().getOrDefault(
+    private static final String PG_URL = System.getenv().getOrDefault(
             "PG_URL", "jdbc:postgresql://localhost:5432/postgres");
-    static final String PG_USERNAME = System.getenv().getOrDefault("PG_USERNAME", "postgres");
-    static final String PG_PASSWORD = System.getenv().getOrDefault("PG_PASSWORD", "password");
+    private static final String PG_USERNAME = System.getenv().getOrDefault("PG_USERNAME", "postgres");
+    private static final String PG_PASSWORD = System.getenv().getOrDefault("PG_PASSWORD", "password");
+    private static final String ES_URL = System.getenv().getOrDefault("ES_URL", "http://localhost:9200");
 
-    // ---------- Elasticsearch ----------
-    static final String ES_URL = System.getenv().getOrDefault(
-            "ES_URL", "http://localhost:9200");
+    // ---------- Step 0: mapping definition ----------
 
-    static final int BATCH_SIZE = 500;
-
-    // schema-qualified table name -> (primary key columns, ES index name)
-    static final Map<String, TableConfig> TABLES = new LinkedHashMap<>();
-    static {
-        TABLES.put("classicmodels.customers", new TableConfig(List.of("customernumber"), "customers"));
-        TABLES.put("classicmodels.employees", new TableConfig(List.of("employeenumber"), "employees"));
-        TABLES.put("classicmodels.offices", new TableConfig(List.of("officecode"), "offices"));
-        TABLES.put("classicmodels.orderdetails", new TableConfig(List.of("ordernumber", "productcode"), "orderdetails"));
-        TABLES.put("classicmodels.orders", new TableConfig(List.of("ordernumber"), "orders"));
-        TABLES.put("classicmodels.payments", new TableConfig(List.of("customernumber", "checknumber"), "payments"));
-        TABLES.put("classicmodels.productlines", new TableConfig(List.of("productline"), "productlines"));
-        TABLES.put("classicmodels.products", new TableConfig(List.of("productcode"), "products"));
+    public static Map<String, Property> getProductMapping() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put("productCode", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("productName", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("productLine", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("productDescription", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("buyPrice", new Property.Builder()
+                .float_(new FloatNumberProperty.Builder().build())
+                .build());
+        properties.put("msrp", new Property.Builder()
+                .float_(new FloatNumberProperty.Builder().build())
+                .build());
+        properties.put("quantityInStock", new Property.Builder()
+                .integer(new IntegerNumberProperty.Builder().build())
+                .build());
+        return properties;
     }
 
-    record TableConfig(List<String> pkCols, String indexName) {}
+    // ---------- Step 1: read from PostgreSQL ----------
 
-    static final HttpClient httpClient = HttpClient.newHttpClient();
-
-    public static void main(String[] args) {
-        try (Connection conn = DriverManager.getConnection(PG_URL, PG_USERNAME, PG_PASSWORD)) {
-
-            System.out.println("Connected to PostgreSQL database!");
-
-            for (Map.Entry<String, TableConfig> entry : TABLES.entrySet()) {
-                migrateTable(conn, entry.getKey(), entry.getValue());
-            }
-
-            System.out.println("\nDone. Verify with:");
-            System.out.println("  curl \"" + ES_URL + "/_cat/indices?v\"");
-
-        } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
-            e.printStackTrace();
-        } catch (Exception e) {
-            System.err.println("Migration error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    static void migrateTable(Connection conn, String tableName, TableConfig config) throws Exception {
-        System.out.println("Migrating '" + tableName + "' -> index '" + config.indexName() + "'...");
-
+    /** Runs SELECT * on tableName and returns one Map per row, column name -> normalized value. */
+    private static List<Map<String, Object>> fetchRows(String tableName) {
+        List<Map<String, Object>> rows = new ArrayList<>();
         String sql = "SELECT * FROM " + tableName;
-        int total = 0;
-        List<Map<String, Object>> batch = new ArrayList<>();
 
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try (Connection conn = DriverManager.getConnection(PG_URL, PG_USERNAME, PG_PASSWORD);
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             ResultSetMetaData meta = rs.getMetaData();
             int columnCount = meta.getColumnCount();
@@ -81,59 +87,30 @@ public class App {
                     String colName = meta.getColumnName(i).toLowerCase();
                     row.put(colName, normalize(rs.getObject(i)));
                 }
-                batch.add(row);
-
-                if (batch.size() >= BATCH_SIZE) {
-                    bulkUpload(config.indexName(), config.pkCols(), batch);
-                    total += batch.size();
-                    batch.clear();
-                }
+                rows.add(row);
             }
+        } catch (SQLException e) {
+            System.err.println("Database error: " + e.getMessage());
+            e.printStackTrace();
         }
 
-        if (!batch.isEmpty()) {
-            bulkUpload(config.indexName(), config.pkCols(), batch);
-            total += batch.size();
-        }
-
-        System.out.println("  \u2713 " + total + " documents indexed into '" + config.indexName() + "'");
+        return rows;
     }
 
-    /** Convert JDBC types that don't serialize to JSON directly (dates, BigDecimal). */
-    static Object normalize(Object value) {
+    /** Convert JDBC types that don't serialize to JSON the way we want (dates, non-finite floats). */
+    private static Object normalize(Object value) {
         if (value instanceof java.sql.Date d) return d.toLocalDate().toString();
         if (value instanceof java.sql.Timestamp t) return t.toLocalDateTime().toString();
-        if (value instanceof java.math.BigDecimal bd) return bd.doubleValue();
+        if (value instanceof java.math.BigDecimal) return value;
+        if (value instanceof Double d && (d.isNaN() || d.isInfinite())) return null;
+        if (value instanceof Float f && (f.isNaN() || f.isInfinite())) return null;
         return value;
     }
 
-    static void bulkUpload(String indexName, List<String> pkCols, List<Map<String, Object>> rows) throws Exception {
-        StringBuilder payload = new StringBuilder();
+    // ---------- Step 2: build the bulk request ----------
 
-        for (Map<String, Object> row : rows) {
-            String docId = buildDocId(row, pkCols);
-            payload.append("{\"index\":{\"_index\":\"").append(indexName)
-                   .append("\",\"_id\":\"").append(escape(docId)).append("\"}}\n");
-            payload.append(toJson(row)).append("\n");
-        }
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(ES_URL + "/_bulk"))
-                .header("Content-Type", "application/x-ndjson")
-                .POST(HttpRequest.BodyPublishers.ofString(payload.toString(), StandardCharsets.UTF_8))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() >= 300) {
-            System.err.println("  \u26a0 Bulk request failed: HTTP " + response.statusCode());
-            System.err.println(response.body());
-        } else if (response.body().contains("\"errors\":true")) {
-            System.err.println("  \u26a0 Some documents in this batch failed to index");
-        }
-    }
-
-    static String buildDocId(Map<String, Object> row, List<String> pkCols) {
+    /** Joins the primary-key column values with "_" to form a stable document _id. */
+    private static String buildDocId(Map<String, Object> row, List<String> pkCols) {
         StringBuilder sb = new StringBuilder();
         for (String col : pkCols) {
             if (sb.length() > 0) sb.append("_");
@@ -142,40 +119,103 @@ public class App {
         return sb.toString();
     }
 
-    /** Build a JSON object string from a row map — no library needed. */
-    static String toJson(Map<String, Object> row) {
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, Object> e : row.entrySet()) {
-            if (!first) sb.append(",");
-            first = false;
-            sb.append("\"").append(escape(e.getKey())).append("\":");
-            sb.append(jsonValue(e.getValue()));
+    /** Wraps every row into an IndexOperation and packs them all into one BulkRequest. */
+    private static BulkRequest buildBulkRequest(String indexName, List<String> pkCols,
+            List<Map<String, Object>> rows) {
+
+        List<BulkOperation> operations = new ArrayList<>();
+
+        for (Map<String, Object> row : rows) {
+            String docId = buildDocId(row, pkCols);
+
+            IndexOperation<Map<String, Object>> indexOp = new IndexOperation.Builder<Map<String, Object>>()
+                    .index(indexName)
+                    .id(docId)
+                    .document(row)
+                    .build();
+
+            BulkOperation bulkOp = new BulkOperation.Builder()
+                    .index(indexOp)
+                    .build();
+
+            operations.add(bulkOp);
         }
-        return sb.append("}").toString();
+
+        return new BulkRequest.Builder()
+                .operations(operations)
+                .build();
     }
 
-    static String jsonValue(Object value) {
-        if (value == null) return "null";
-        if (value instanceof Number || value instanceof Boolean) return value.toString();
-        return "\"" + escape(value.toString()) + "\"";
+    // ---------- Step 3: create the index if it doesn't exist yet ----------
+
+    /** Creates indexName with the given mapping, unless it already exists. */
+    private static void ensureIndex(ElasticsearchClient esClient, String indexName,
+            Map<String, Property> properties) throws IOException {
+
+        ExistsRequest existsRequest = new ExistsRequest.Builder()
+                .index(indexName)
+                .build();
+        boolean exists = esClient.indices().exists(existsRequest).value();
+
+        if (exists) {
+            System.out.println("  index '" + indexName + "' already exists — skipping mapping creation");
+            return;
+        }
+
+        TypeMapping mapping = new TypeMapping.Builder()
+                .properties(properties)
+                .build();
+
+        CreateIndexRequest request = new CreateIndexRequest.Builder()
+                .index(indexName)
+                .mappings(mapping)
+                .build();
+
+        esClient.indices().create(request);
+        System.out.println("  ✓ created index '" + indexName + "' with explicit mapping");
     }
 
-    static String escape(String s) {
-        StringBuilder sb = new StringBuilder();
-        for (char c : s.toCharArray()) {
-            switch (c) {
-                case '"'  -> sb.append("\\\"");
-                case '\\' -> sb.append("\\\\");
-                case '\n' -> sb.append("\\n");
-                case '\r' -> sb.append("\\r");
-                case '\t' -> sb.append("\\t");
-                default -> {
-                    if (c < 0x20) sb.append(String.format("\\u%04x", (int) c));
-                    else sb.append(c);
-                }
+    // ---------- Step 4: send the bulk request and report the result ----------
+
+    private static void printBulkResult(BulkResponse result, int rowCount, String indexName) {
+        if (!result.errors()) {
+            System.out.println("  ✓ " + rowCount + " documents indexed into '" + indexName + "'");
+            return;
+        }
+        for (BulkResponseItem item : result.items()) {
+            if (item.error() != null) {
+                System.err.println("Failed: " + item.error().reason());
             }
         }
-        return sb.toString();
     }
+
+    // ---------- Orchestration: run all the steps above in order ----------
+
+    public static void migrateTable(String indexName, String tableName, List<String> pkCols,
+            Map<String, Property> properties) {
+
+        List<Map<String, Object>> rows = fetchRows(tableName);
+        BulkRequest bulkRequest = buildBulkRequest(indexName, pkCols, rows);
+
+        HttpHost host = HttpHost.create(ES_URL);
+
+        try (RestClient restClient = RestClient.builder(host).build()) {
+            ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+            ElasticsearchClient esClient = new ElasticsearchClient(transport);
+
+            ensureIndex(esClient, indexName, properties);
+
+            BulkResponse result = esClient.bulk(bulkRequest);
+            printBulkResult(result, rows.size(), indexName);
+
+        } catch (IOException e) {
+            System.err.println("Elasticsearch error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        migrateTable("products", "classicmodels.products", List.of("productcode"), getProductMapping());
+    }
+
 }
