@@ -9,112 +9,112 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 public class ProductDocument {
 
     @Id
-    @Field(name = "productcode", type = FieldType.Keyword)
-    private String productCode;
+    @Field(type = FieldType.Keyword)
+    private String productcode;
 
-    @Field(name = "productname", type = FieldType.Text)
-    private String productName;
+    @Field(type = FieldType.Text)
+    private String productname;
 
-    @Field(name = "productline", type = FieldType.Keyword)
-    private String productLine;
+    @Field(type = FieldType.Keyword)
+    private String productline;
 
-    @Field(name = "productdescription", type = FieldType.Text)
-    private String productDescription;
+    @Field(type = FieldType.Text)
+    private String productdescription;
 
-    @Field(name = "productscale", type = FieldType.Keyword)
-    private String productScale;
+    @Field(type = FieldType.Keyword)
+    private String productscale;
 
-    @Field(name = "productvendor", type = FieldType.Keyword)
-    private String productVendor;
+    @Field(type = FieldType.Keyword)
+    private String productvendor;
 
-    @Field(name = "buyprice", type = FieldType.Float)
-    private Double buyPrice;
+    @Field(type = FieldType.Float)
+    private Double buyprice;
 
-    @Field(name = "msrp", type = FieldType.Float)
+    @Field(type = FieldType.Float)
     private Double msrp;
 
-    @Field(name = "quantityinstock", type = FieldType.Integer)
-    private Integer quantityInStock;
+    @Field(type = FieldType.Integer)
+    private Integer quantityinstock;
 
     public ProductDocument() {
     }
 
     public ProductDocument(
-            String productCode,
-            String productName,
-            String productLine,
-            String productDescription,
-            String productScale,
-            String productVendor,
-            Double buyPrice,
+            String productcode,
+            String productname,
+            String productline,
+            String productdescription,
+            String productscale,
+            String productvendor,
+            Double buyprice,
             Double msrp,
-            Integer quantityInStock) {
+            Integer quantityinstock) {
 
-        this.productCode = productCode;
-        this.productName = productName;
-        this.productLine = productLine;
-        this.productDescription = productDescription;
-        this.productScale = productScale;
-        this.productVendor = productVendor;
-        this.buyPrice = buyPrice;
+        this.productcode = productcode;
+        this.productname = productname;
+        this.productline = productline;
+        this.productdescription = productdescription;
+        this.productscale = productscale;
+        this.productvendor = productvendor;
+        this.buyprice = buyprice;
         this.msrp = msrp;
-        this.quantityInStock = quantityInStock;
+        this.quantityinstock = quantityinstock;
     }
 
-    public String getProductCode() {
-        return productCode;
+    public String getProductcode() {
+        return productcode;
     }
 
-    public void setProductCode(String productCode) {
-        this.productCode = productCode;
+    public void setProductcode(String productcode) {
+        this.productcode = productcode;
     }
 
-    public String getProductName() {
-        return productName;
+    public String getProductname() {
+        return productname;
     }
 
-    public void setProductName(String productName) {
-        this.productName = productName;
+    public void setProductname(String productname) {
+        this.productname = productname;
     }
 
-    public String getProductLine() {
-        return productLine;
+    public String getProductline() {
+        return productline;
     }
 
-    public void setProductLine(String productLine) {
-        this.productLine = productLine;
+    public void setProductline(String productline) {
+        this.productline = productline;
     }
 
-    public String getProductDescription() {
-        return productDescription;
+    public String getProductdescription() {
+        return productdescription;
     }
 
-    public void setProductDescription(String productDescription) {
-        this.productDescription = productDescription;
+    public void setProductdescription(String productdescription) {
+        this.productdescription = productdescription;
     }
 
-    public String getProductScale() {
-        return productScale;
+    public String getProductscale() {
+        return productscale;
     }
 
-    public void setProductScale(String productScale) {
-        this.productScale = productScale;
+    public void setProductscale(String productscale) {
+        this.productscale = productscale;
     }
 
-    public String getProductVendor() {
-        return productVendor;
+    public String getProductvendor() {
+        return productvendor;
     }
 
-    public void setProductVendor(String productVendor) {
-        this.productVendor = productVendor;
+    public void setProductvendor(String productvendor) {
+        this.productvendor = productvendor;
     }
 
-    public Double getBuyPrice() {
-        return buyPrice;
+    public Double getBuyprice() {
+        return buyprice;
     }
 
-    public void setBuyPrice(Double buyPrice) {
-        this.buyPrice = buyPrice;
+    public void setBuyprice(Double buyprice) {
+        this.buyprice = buyprice;
     }
 
     public Double getMsrp() {
@@ -125,11 +125,11 @@ public class ProductDocument {
         this.msrp = msrp;
     }
 
-    public Integer getQuantityInStock() {
-        return quantityInStock;
+    public Integer getQuantityinstock() {
+        return quantityinstock;
     }
 
-    public void setQuantityInStock(Integer quantityInStock) {
-        this.quantityInStock = quantityInStock;
+    public void setQuantityinstock(Integer quantityinstock) {
+        this.quantityinstock = quantityinstock;
     }
 }

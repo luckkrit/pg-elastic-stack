@@ -7,7 +7,7 @@ public interface ProductSearchRepository
         extends ElasticsearchRepository<ProductDocument, String> {
 
     List<ProductDocument>
-    findByProductNameOrProductDescription(
+    findByProductnameOrProductdescription(
             String productName,
             String productDescription
     );

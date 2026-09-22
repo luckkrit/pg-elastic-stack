@@ -31,8 +31,8 @@
                 <tbody>
                     <tr class="border-b" th:each="product : ${results}">
                         <td th:text="${product.productcode}"></td>
-                        <td th:text="${product.productlines.productline}"></td>
-                        <td th:text="${product.productname}"></td>
+                        <td class="no-highlight" th:unless="${es}" th:text="${product.productlines.productline}"></td>
+                        <td class="no-highlight" th:if="${es}" th:text="${product.productline}"></td>
                         <td th:text="${product.productdescription}">-</td>
                         <td th:if="${addProduct != null}">
                             <form

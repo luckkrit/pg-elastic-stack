@@ -14,7 +14,7 @@ public class ProductSearchService {
 
     public List<ProductDocument> search(String keyword) {
         return repository
-                .findByProductNameOrProductDescription(
+                .findByProductnameOrProductdescription(
                         keyword,
                         keyword
                 );

@@ -1,7 +1,8 @@
 package com.example.demo.controller;
 
 import java.util.List;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,7 +24,7 @@ import com.example.demo.elasticsearch.ProductSearchService;
 
 @Controller
 public class HomeController {
-
+	private static final Logger log = LoggerFactory.getLogger(HomeController.class);
 	private final CustomerRepository customerRepository;
 	private final OrderRepository orderRepository;
 	private final OrderDetailRepository orderDetailRepository;
@@ -93,16 +94,18 @@ public class HomeController {
 			ra.addAttribute("q", q);
 		if (es)
 			ra.addAttribute("es", true);
-		return "redirect:/customer/" + customernumber + "/order/" + ordernumber+"/detail";
+		return "redirect:/customer/" + customernumber + "/order/" + ordernumber + "/detail";
 	}
+
 	@GetMapping("/product")
 	public String showProducts(@RequestParam(required = false) String q,
 			@RequestParam(defaultValue = "false") boolean es, Model model) {
 		List<?> results = List.of();
 		if (q != null && !q.isBlank()) {
 			results = es ? productSearchService.search(q.trim())
-			: productRepository.search(q.trim());
+					: productRepository.search(q.trim());
 		}
+		log.info("es={}, q={}", es, q);
 		model.addAttribute("results", results);
 		model.addAttribute("q", q);
 		model.addAttribute("es", es);
