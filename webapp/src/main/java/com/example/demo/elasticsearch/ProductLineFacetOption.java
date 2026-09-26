@@ -1,11 +1,11 @@
 package com.example.demo.elasticsearch;
 
-public class FacetOption {
+public class ProductLineFacetOption {
 
     private final String name;
     private final long count;
 
-    public FacetOption(String name, long count) {
+    public ProductLineFacetOption(String name, long count) {
         this.name = name;
         this.count = count;
     }

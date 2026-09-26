@@ -18,7 +18,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.example.demo.elasticsearch.ProductLineFacetSearchService;
-import com.example.demo.elasticsearch.FacetOption;
+import com.example.demo.elasticsearch.ProductPriceRangeFacetOption;
+import com.example.demo.elasticsearch.ProductLineFacetOption;
 import com.example.demo.elasticsearch.ProductDocument;
 
 @Controller
@@ -31,9 +32,12 @@ public class ProductLineFacetSearchController {
     }
 
     @GetMapping("/product-facet-search")
-    public String productFacetSearch(@RequestParam(required = false) String selectedProductLine, Model model) {
+    public String productFacetSearch(@RequestParam(required = false) String selectedProductLine,
+            @RequestParam(required = false) Double minPrice, @RequestParam(required = false) Double maxPrice,
+            Model model) {
         try {
-            SearchResponse<ProductDocument> searchResponse = productLineFacetSearchService.search(selectedProductLine);
+            SearchResponse<ProductDocument> searchResponse = productLineFacetSearchService.search(selectedProductLine,
+                    minPrice, maxPrice);
             log.info("Found {} hits", searchResponse.hits().hits().size());
             log.info("Hits: {}", searchResponse.hits().hits());
             log.info("Aggs: {}", searchResponse.aggregations());
@@ -43,26 +47,40 @@ public class ProductLineFacetSearchController {
                     .map(Hit::source)
                     .filter(Objects::nonNull)
                     .toList();
-            List<FacetOption> productLineFacets = searchResponse.aggregations()
+            List<ProductLineFacetOption> productLineFacets = searchResponse.aggregations()
                     .get("by_productline")
                     .sterms()
                     .buckets()
                     .array()
                     .stream()
-                    .map(bucket -> new FacetOption(
+                    .map(bucket -> new ProductLineFacetOption(
                             bucket.key().stringValue(),
                             bucket.docCount()))
+                    .toList();
+            List<ProductPriceRangeFacetOption> productPriceRangeFacets = searchResponse.aggregations()
+                    .get("by_price")
+                    .range()
+                    .buckets()
+                    .array()
+                    .stream()
+                    .map(bucket -> new ProductPriceRangeFacetOption(
+                            bucket.key(),
+                            bucket.docCount(),
+                            bucket.from(),
+                            bucket.to()))
                     .toList();
 
             model.addAttribute(
                     "productLineFacets",
                     productLineFacets);
-
+            model.addAttribute(
+                    "productPriceRangeFacets",
+                    productPriceRangeFacets);
             model.addAttribute("products", products);
-            model.addAttribute("searchResponse", searchResponse);
+            log.info("selectedProductLine: {}", selectedProductLine==null);
             model.addAttribute("selectedProductLine", selectedProductLine);
-            model.addAttribute("hits", searchResponse.hits().hits());
-            model.addAttribute("aggs", searchResponse.aggregations());
+            model.addAttribute("minPrice", minPrice);
+            model.addAttribute("maxPrice", maxPrice);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error during Elasticsearch search", e);
         }
