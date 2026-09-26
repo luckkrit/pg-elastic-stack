@@ -10,7 +10,11 @@
                     <h2 class="text-md font-bold my-2">Product Lines</h2>
                     <ul class="menu rounded-box w-56">
                         <li>
-                            <a th:href="@{/product-facet-search(
+							<a th:if="${minPrice == null and maxPrice == null}" th:href="@{/product-facet-search}" th:classappend="${selectedProductLine == null or selectedProductLine == ''}
+       ? 'font-bold menu-active' : ''">
+                                All
+                            </a>
+                            <a th:unless="${minPrice == null and maxPrice == null}" th:href="@{/product-facet-search(
         minPrice=${minPrice},
         maxPrice=${maxPrice}
     )}" th:classappend="${selectedProductLine == null or selectedProductLine == ''}
@@ -19,7 +23,10 @@
                             </a>
                         </li>
                         <li th:each="bucket : ${productLineFacets}">
-                            <a th:href="@{/product-facet-search(selectedProductLine=${bucket.name},minPrice=${minPrice},
+                            <a th:if="${minPrice == null and maxPrice == null}" th:href="@{/product-facet-search(selectedProductLine=${bucket.name})}" th:classappend="${selectedProductLine == bucket.name} ? 'font-bold menu-active' : ''"
+                                th:text="|${bucket.name} (${bucket.count})|">
+                            </a>
+							<a th:unless="${minPrice == null and maxPrice == null}" th:href="@{/product-facet-search(selectedProductLine=${bucket.name},minPrice=${minPrice},
        maxPrice=${maxPrice})}" th:classappend="${selectedProductLine == bucket.name} ? 'font-bold menu-active' : ''"
                                 th:text="|${bucket.name} (${bucket.count})|">
                             </a>
@@ -27,6 +34,14 @@
                     </ul>
                     <h2 class="text-md font-bold my-2">Price Ranges</h2>
                     <ul class="menu rounded-box w-56">
+						<li>
+							<a th:if="${selectedProductLine == null}" th:href="@{/product-facet-search}" th:classappend="${minPrice == null and maxPrice == null} ? 'font-bold menu-active' : ''" th:text="None">
+                            </a>
+							<a th:unless="${selectedProductLine == null}" th:href="@{/product-facet-search(
+       selectedProductLine=${selectedProductLine}
+   )}" th:classappend="${minPrice == null and maxPrice == null} ? 'font-bold menu-active' : ''" th:text="None">
+                            </a>
+						</li>
                         <li th:each="bucket : ${productPriceRangeFacets}">
                             <a th:if="${selectedProductLine == null or selectedProductLine == ''}" th:href="@{/product-facet-search(
        minPrice=${bucket.from},
