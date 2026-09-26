@@ -1,0 +1,49 @@
+<html th:replace="~{layout :: layout('Product Facet Search', 'product-facet-search', ~{::main})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <main>
+        <div class="flex gap-2">
+            <div class="w-fit">
+                <div class="p-1 border rounded-md">
+                    <h1 class="text-md font-bold border-b-1">Filters</h1>
+                    <h2 class="text-md font-bold my-2">Product Lines</h2>
+                    <ul class="menu rounded-box w-56">
+                        <li th:each="bucket : ${productLineFacets}">
+                            <a th:href="@{/product-facet-search(selectedProductLine=${bucket.name})}"
+                                th:classappend="${selectedProductLine == bucket.name} ? 'font-bold menu-active' : ''"
+                                th:text="|${bucket.name} (${bucket.count})|">
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="flex-1">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Product Line</th>
+                            <th>Buy Price</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr th:each="product : ${products}">
+
+                            <td th:text="${product.productcode}"></td>
+
+                            <td th:text="${product.productname}"></td>
+
+                            <td th:text="${product.productline}"></td>
+
+                            <td th:text="${product.buyprice}"></td>
+
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

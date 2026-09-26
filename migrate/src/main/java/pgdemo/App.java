@@ -25,6 +25,7 @@ import co.elastic.clients.elasticsearch._types.mapping.KeywordProperty;
 import co.elastic.clients.elasticsearch._types.mapping.Property;
 import co.elastic.clients.elasticsearch._types.mapping.TextProperty;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
+import co.elastic.clients.elasticsearch._types.mapping.DateProperty;    
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
@@ -92,6 +93,56 @@ public class App {
                 .build());
         return properties;
     }
+
+    public static Map<String, Property> getProductsSearchMapping() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put("productcode", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("productname", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("productline", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("productdescription", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("productlinedescription", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("msrp", new Property.Builder()
+                .float_(new FloatNumberProperty.Builder().build())
+                .build());
+        return properties;
+    }
+
+    public static Map<String, Property> getCustomerOrdersView() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put("ordernumber", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("orderdate", new Property.Builder()
+                .date(new DateProperty.Builder().build())
+                .build());
+        properties.put("status", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("comments", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("customernumber", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        properties.put("customername", new Property.Builder()
+                .text(new TextProperty.Builder().build())
+                .build());
+        properties.put("country", new Property.Builder()
+                .keyword(new KeywordProperty.Builder().build())
+                .build());
+        return properties;
+    }
+
 
     // ---------- Step 1: read from PostgreSQL ----------
 
@@ -247,6 +298,8 @@ public class App {
     public static void main(String[] args) {
         migrateTable("products", "classicmodels.products", List.of("productcode"), getProductMapping());
         migrateTable("customers", "classicmodels.customers", List.of("customernumber"), getCustomerMapping());
+        migrateTable("products_search", "classicmodels.products_search_view", List.of("productcode"), getProductsSearchMapping());
+        migrateTable("customer_orders_view", "classicmodels.customer_orders_view", List.of("ordernumber"), getCustomerOrdersView());
     }
 
 }
