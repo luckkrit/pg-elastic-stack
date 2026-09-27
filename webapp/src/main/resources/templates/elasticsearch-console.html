@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Elasticsearch Query Console</title>
+
+    <script defer data-manual src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/prism.min.js"></script>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-json.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.5.0/dist/js/tabulator.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsonata/jsonata.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.5.0/dist/css/tabulator.min.css">
+</head>
+
+<body>
+
+    <main class="p-4">
+        <h1 class="font-bold text-xl">Elasticsearch Query Console</h1>
+        <div class="flex gap-2 w-full">
+
+            <div class="w-1/2">
+
+                <form id="esform" th:action="@{/console}" method="post">
+
+                    <h3 class="font-bold pt-2 pb-4">Elasticsearch Query</h3>
+
+                    <textarea id="esexpr" class="textarea w-full" name="command" rows="15" cols="90" spellcheck="false"
+                        th:text="${command}"></textarea>
+                    <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
+
+
+                    <button class="btn btn-neutral my-2" type="submit">
+                        Execute
+                    </button>
+
+                </form>
+
+            </div>
+            <div class="w-1/2 max-height-[350px]">
+
+                <div class="flex gap-2 items-center">
+
+                    <h3 class="font-bold py-2">Response</h3>
+
+                    <div class="p-1 border rounded-md text-white bg-black" th:text="${status}"></div>
+                </div>
+
+                <pre
+                    class="language-json max-h-[330px] overflow-auto text-[14px] leading-normal rounded-lg p-4 [tab-size:2]"><code
+    id="jsonResponse"
+    class="language-json"
+    th:text="${result}"></code></pre>
+            </div>
+        </div>
+        <div id="resultTable">
+
+        </div>
+        <br/>
+        <div class="flex gap-2 items-center">
+            <h3 class="font-bold py-2">Query JSON using JSONata </h3>
+            <a class="link" href="https://try.jsonata.org/">https://try.jsonata.org/</a>
+        </div>
+        <textarea class="textarea" id="expr">hits.hits.$merge([{"_id": _id}, _source])</textarea>
+        <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
+        <button class="btn btn-primary my-2" id="run">Query</button>
+        <div id="table"></div>
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            pretifyJson();
+            showTable();
+        });
+        function pretifyJson() {
+            const element =
+                document.querySelector("#jsonResponse");
+
+            if (!element) return;
+
+            const raw = element.textContent;
+
+            if (!raw.trim()) return;
+
+            try {
+
+                const json = JSON.parse(raw);
+                element.textContent =
+                    JSON.stringify(json, null, 2);
+
+            } catch (error) {
+
+                // Invalid JSON or non-JSON response.
+                // Preserve the original text.
+
+                element.textContent = raw;
+
+            }
+
+            Prism.highlightElement(element);
+
+        }
+        function showTable() {
+
+            const element =
+                document.querySelector("#jsonResponse");
+
+            if (!element) return;
+
+            const raw = element.textContent;
+
+            if (!raw.trim()) return;
+            try {
+
+                const json2 = JSON.parse(raw);
+
+
+                // map rows for Tabulator
+                function toRows(res) {
+                    if (res.aggregations) {
+                        const [name, agg] = Object.entries(res.aggregations)[0];
+                        return agg.buckets.map(b => ({ [name]: b.key, count: b.doc_count }));
+                    }
+                    return res.hits.hits.map(h => ({ _id: h._id, _score: h._score, ...h._source }));
+                }
+
+
+                new Tabulator("#resultTable", {
+                    data: toRows(json2),
+                    autoColumns: true,
+                    layout: "fitDataStretch",
+                    pagination: true,
+                    paginationSize: 10
+                });
+            } catch (error) {
+                console.log(error)
+                const resultTable = document.getElementById("resultTable");
+                resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
+            }
+        }
+        const esexpr = document.querySelector("#esexpr");
+        esexpr.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();   // stop it from inserting a newline
+                document.getElementById('esform').submit()
+            }
+        });
+    </script>
+
+    <script type="module">
+
+        async function runQuery() {
+            try {
+
+
+                const element =
+                    document.querySelector("#jsonResponse");
+                const raw = element.textContent;
+                const json3 = JSON.parse(raw);
+
+                let rows = await jsonata(document.querySelector("#expr").value).evaluate(json3);
+                rows = Array.isArray(rows) ? rows : [rows];
+
+
+                new Tabulator("#table", {
+                    data: rows,
+                    autoColumns: true,
+                    layout: "fitDataStretch",
+                    pagination: true,
+                    paginationSize: 10
+                });
+            } catch (error) {
+                console.log(error)
+                const resultTable = document.getElementById("table");
+                resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
+            }
+        }
+        document.querySelector("#run").onclick = async () => {
+            await runQuery();
+        };
+        const expr = document.querySelector("#expr");
+        expr.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();   // stop it from inserting a newline
+                runQuery();
+            }
+        });
+    </script>
+</body>
+
+</html>
