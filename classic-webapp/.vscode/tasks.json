@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+{
+  "label": "Cargo Start",
+  "type": "shell",
+  "command": "./mvnw package cargo:run",
+  "isBackground": false,
+  "problemMatcher": []
+}
+  ]
+}

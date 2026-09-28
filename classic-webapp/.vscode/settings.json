@@ -1,0 +1,11 @@
+{
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": "src/main/.*\\.(java|jsp|xhtml|xml|css|js|properties)$",
+                "cmd": "./scripts/redeploy-cargo.sh"
+            }
+        ]
+    }
+}

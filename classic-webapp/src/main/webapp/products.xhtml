@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+
+<h:head>
+    <title>Products - JSF</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f3f3f3;
+        }
+    </style>
+
+</h:head>
+
+<h:body>
+
+    <h1>Products - JSF</h1>
+
+    <h:dataTable value="#{productBean.products}"
+                 var="product">
+
+        <h:column>
+            <f:facet name="header">
+                Product Code
+            </f:facet>
+
+            #{product.productCode}
+        </h:column>
+
+        <h:column>
+            <f:facet name="header">
+                Product Name
+            </f:facet>
+
+            #{product.productName}
+        </h:column>
+
+        <h:column>
+            <f:facet name="header">
+                Product Line
+            </f:facet>
+
+            #{product.productLine}
+        </h:column>
+
+    </h:dataTable>
+
+</h:body>
+
+</html>

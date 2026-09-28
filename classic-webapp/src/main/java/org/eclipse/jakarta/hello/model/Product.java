@@ -1,0 +1,65 @@
+package org.eclipse.jakarta.hello.model;
+
+public class Product {
+
+    private String productCode;
+    private String productName;
+    private String productLine;
+    private Double buyPrice;
+    private Double msrp;
+
+    public Double getMsrp() {
+        return msrp;
+    }
+
+    public void setMsrp(Double msrp) {
+        this.msrp = msrp;
+    }
+
+    public Double getBuyPrice() {
+        return buyPrice;
+    }
+
+    public void setBuyPrice(Double buyPrice) {
+        this.buyPrice = buyPrice;
+    }
+
+    public Product() {
+    }
+
+    public Product(String productCode,
+                   String productName,
+                   String productLine,
+                Double buyPrice, Double msrp) {
+
+        this.productCode = productCode;
+        this.productName = productName;
+        this.productLine = productLine;
+        this.buyPrice = buyPrice;
+        this.msrp = msrp;
+    }
+
+    public String getProductCode() {
+        return productCode;
+    }
+
+    public void setProductCode(String productCode) {
+        this.productCode = productCode;
+    }
+
+    public String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+
+    public String getProductLine() {
+        return productLine;
+    }
+
+    public void setProductLine(String productLine) {
+        this.productLine = productLine;
+    }
+}
