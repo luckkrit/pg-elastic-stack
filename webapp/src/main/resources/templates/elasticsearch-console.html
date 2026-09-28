@@ -54,19 +54,19 @@
     id="jsonResponse"
     class="language-json"
     th:text="${result}"></code></pre>
+                <div class="flex gap-2 items-center">
+                    <h3 class="font-bold py-2">Query JSON using JSONata </h3>
+                    <a class="link" href="https://try.jsonata.org/">https://try.jsonata.org/</a>
+                </div>
+                <textarea class="textarea" id="expr">hits.hits.$merge([{"_id": _id}, _source])</textarea>
+                <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
+                <button class="btn btn-primary my-2" id="run">Query</button>
             </div>
         </div>
+        <br />
         <div id="resultTable">
 
         </div>
-        <br />
-        <div class="flex gap-2 items-center">
-            <h3 class="font-bold py-2">Query JSON using JSONata </h3>
-            <a class="link" href="https://try.jsonata.org/">https://try.jsonata.org/</a>
-        </div>
-        <textarea class="textarea" id="expr">hits.hits.$merge([{"_id": _id}, _source])</textarea>
-        <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
-        <button class="btn btn-primary my-2" id="run">Query</button>
     </main>
 
     <script type="module">
@@ -93,7 +93,7 @@
             }
 
             const expr = document.querySelector("#expr");
-            expr.addEventListener("input", () => scheduleRun(300));
+            expr.addEventListener("input", () => scheduleRun(1000));
             expr.addEventListener("keydown", (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                     e.preventDefault();   // stop it from inserting a newline
