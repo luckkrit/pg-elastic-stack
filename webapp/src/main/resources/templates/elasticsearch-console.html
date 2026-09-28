@@ -359,13 +359,8 @@
             esEditor.session.on("change", syncHeight);
         }
         function initAceEditorExpr() {
-            const tabulator = new Tabulator(resultTable, {
-                data: [],
-                autoColumns: true,
-                layout: "fitDataStretch",
-                pagination: true,
-                paginationSize: 10
-            });
+            let tabulator = null;
+            let tableReady = false;
             const exprEditor = ace.edit("expr");
             exprEditor.session.setMode("ace/mode/jsonata");
             // exprEditor.session.setUseWrapMode(true);
@@ -398,8 +393,25 @@
                 }, delay);
             }
             function showTable(rows) {
-                if(rows.length==0) tabulator.clearData()
-                tabulator.setData(rows)
+                if (tabulator == null) {
+                    tableReady = false
+                    tabulator = new Tabulator(resultTable, {
+                        data: [],
+                        autoColumns: true,
+                        layout: "fitDataStretch",
+                        pagination: true,
+                        paginationSize: 10
+                    })
+                    tabulator.on("tableBuilt", () => {
+                        tableReady = true;
+                    });
+                }
+                if (tabulator != null) {
+                    if (rows.length == 0) tabulator.clearData()
+                    if (tableReady) {
+                        tabulator.setData(rows)
+                    }
+                }
             }
             async function runQuery(value) {
                 if (value == null || value.trim() === "") {
@@ -426,6 +438,9 @@
                     console.log(error)
                     resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
                     resultTable.style.color = "red"
+                    if (tabulator)
+                        tabulator.destroy();
+                    tabulator = null;
                 }
             }
 
@@ -437,14 +452,14 @@
                     win: "Ctrl-Enter",
                     mac: "Command-Enter"
                 },
-                exec: function (editor) {
+                exec: async function (editor) {
                     const value = editor.getValue();
 
                     if (value.trim() === "") {
                         return;
                     }
 
-                    runQuery(value);
+                    await runQuery(value);
                 }
             });
 
