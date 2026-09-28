@@ -4,16 +4,30 @@
 <head>
     <title>Elasticsearch Query Console</title>
 
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
     <script defer data-manual src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/prism.min.js"></script>
 
     <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-json.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.5.0/dist/js/tabulator.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsonata/jsonata.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.44.0/src-min-noconflict/ace.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.44.0/src-min-noconflict/mode-json.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.44.0/src-min-noconflict/theme-tomorrow.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism-tomorrow.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.5.0/dist/css/tabulator.min.css">
+    <style>
+        .ace_editor {
+            line-height: normal;
+            -webkit-text-size-adjust: none;
+            tab-size: 8;
+        }
+
+        .ace_identifier {
+            color: #0000c0;
+        }
+    </style>
 </head>
 
 <body>
@@ -27,9 +41,10 @@
                 <form id="esform" th:action="@{/console}" method="post">
 
                     <h3 class="font-bold pt-2 pb-4">Elasticsearch Query</h3>
-
-                    <textarea id="esexpr" class="textarea w-full" name="command" rows="15" cols="90" spellcheck="false"
-                        th:text="${command}"></textarea>
+                    <div id="esexpr" th:text="${command}" class="h-[250px]"></div>
+                    <input type="hidden" name="command" th:value="${command}" id="esexprHidden">
+                    <!-- <textarea id="esexpr" class="textarea w-full" name="command" rows="15" cols="90" spellcheck="false"
+                        th:text="${command}"></textarea> -->
                     <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
 
 
@@ -54,16 +69,16 @@
     id="jsonResponse"
     class="language-json"
     th:text="${result}"></code></pre>
-                <div class="flex gap-2 items-center">
-                    <h3 class="font-bold py-2">Query JSON using JSONata </h3>
-                    <a class="link" href="https://try.jsonata.org/">https://try.jsonata.org/</a>
-                </div>
-                <textarea class="textarea" id="expr">hits.hits.$merge([{"_id": _id}, _source])</textarea>
-                <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
-                <button class="btn btn-primary my-2" id="run">Query</button>
             </div>
         </div>
         <br />
+        <div class="flex gap-2 items-center">
+            <h3 class="font-bold py-2">Query JSON using JSONata </h3>
+            <a class="link" href="https://try.jsonata.org/">https://try.jsonata.org/</a>
+        </div>
+        <div id="expr" class="h-[100px]"></div>
+        <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
+        <button class="btn btn-primary my-2" id="run">Query</button>
         <div id="resultTable">
 
         </div>
@@ -73,15 +88,303 @@
 
         document.addEventListener("DOMContentLoaded", () => {
 
+            pretifyJson();
+            initAceElasticsearch();
+            initAceJsonAta();
+            initAceEditorEs();
+            initAceEditorExpr();
+        });
+        function initAceJsonAta() {
+            ace.define("ace/mode/jsonata_highlight_rules",
+                ["require", "exports", "ace/lib/oop", "ace/mode/text_highlight_rules"],
+                function (require, exports) {
+                    const oop = require("ace/lib/oop");
+                    const TextHighlightRules = require("ace/mode/text_highlight_rules").TextHighlightRules;
+                    const JsonataHighlightRules = function () {
+                        this.$rules = {
+                            start: [
+                                { token: "comment", regex: "\\/\\*.*\\*\\/" },
+                                { token: "string", regex: "'.*?'" },
+                                { token: "string", regex: '".*?"' },
+                                { token: "variable", regex: "\\$[a-zA-Z0-9_]*" },
+                                { token: "identifier", regex: "[a-zA-Z0-9_]+" }
+                            ]
+                        };
+                        this.normalizeRules();
+                    };
+                    oop.inherits(JsonataHighlightRules, TextHighlightRules);
+                    exports.JsonataHighlightRules = JsonataHighlightRules;
+                });
+
+            ace.define("ace/mode/jsonata",
+                ["require", "exports", "ace/lib/oop", "ace/mode/text", "ace/mode/jsonata_highlight_rules"],
+                function (require, exports) {
+                    const oop = require("ace/lib/oop");
+                    const TextMode = require("ace/mode/text").Mode;
+                    const Rules = require("ace/mode/jsonata_highlight_rules").JsonataHighlightRules;
+                    const Mode = function () { this.HighlightRules = Rules; };
+                    oop.inherits(Mode, TextMode);
+                    (function () { this.$id = "ace/mode/jsonata"; }).call(Mode.prototype);
+                    exports.Mode = Mode;
+                });
+        }
+        function initAceElasticsearch() {
+
+            ace.define(
+                "ace/mode/elasticsearch_highlight_rules",
+                [
+                    "require",
+                    "exports",
+                    "ace/lib/oop",
+                    "ace/mode/text_highlight_rules"
+                ],
+                function (require, exports) {
+
+                    const oop = require("ace/lib/oop");
+                    const TextHighlightRules =
+                        require("ace/mode/text_highlight_rules").TextHighlightRules;
+
+                    const ElasticsearchHighlightRules = function () {
+
+                        this.$rules = {
+
+                            // =========================================
+                            // Main
+                            // =========================================
+                            start: [
+
+                                // HTTP method
+                                {
+                                    token: "keyword",
+                                    regex: "\\b(GET|POST|PUT|DELETE|PATCH|HEAD)\\b"
+                                },
+
+                                // Elasticsearch endpoint
+                                {
+                                    token: "support.function",
+                                    regex: "\\/?[a-zA-Z0-9_.*,-]+(?:\\/[a-zA-Z0-9_.*,-]+)*(?:\\?[^\\s]*)?"
+                                },
+
+                                // Comments
+                                {
+                                    token: "comment",
+                                    regex: "\\/\\/.*$"
+                                },
+
+                                // Start JSON body
+                                {
+                                    token: "paren.lparen",
+                                    regex: "\\{",
+                                    next: "json"
+                                }
+                            ],
+
+                            // =========================================
+                            // JSON / Elasticsearch Query DSL
+                            // =========================================
+                            json: [
+
+                                // Comments
+                                {
+                                    token: "comment",
+                                    regex: "\\/\\/.*$"
+                                },
+
+                                {
+                                    token: "comment",
+                                    regex: "#.*$"
+                                },
+
+                                // Elasticsearch keywords
+                                {
+                                    token: "keyword",
+                                    regex:
+                                        '"(?:query|match|match_all|multi_match|term|terms|' +
+                                        'range|bool|must|should|must_not|filter|' +
+                                        'aggs|aggregations|avg|sum|min|max|stats|' +
+                                        'date_histogram|histogram|cardinality|' +
+                                        'sort|from|size|source|_source|' +
+                                        'highlight|fields|script|exists|prefix|' +
+                                        'wildcard|fuzzy|boost|minimum_should_match)"' +
+                                        "(?=\\s*:)"
+                                },
+
+                                // Normal JSON property
+                                {
+                                    token: "variable",
+                                    regex: '"(?:\\\\.|[^"\\\\])*"(?=\\s*:)'
+                                },
+
+                                // String value
+                                {
+                                    token: "string",
+                                    regex: '"(?:\\\\.|[^"\\\\])*"'
+                                },
+
+                                // Number
+                                {
+                                    token: "constant.numeric",
+                                    regex: "-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?"
+                                },
+
+                                // true / false
+                                {
+                                    token: "constant.language.boolean",
+                                    regex: "\\b(?:true|false)\\b"
+                                },
+
+                                // null
+                                {
+                                    token: "constant.language",
+                                    regex: "\\bnull\\b"
+                                },
+
+                                // Brackets
+                                {
+                                    token: "paren.lparen",
+                                    regex: "[\\[{]"
+                                },
+
+                                {
+                                    token: "paren.rparen",
+                                    regex: "[\\]}]"
+                                },
+
+                                // punctuation
+                                {
+                                    token: "punctuation.operator",
+                                    regex: "[,:]"
+                                }
+                            ]
+                        };
+
+                        this.normalizeRules();
+                    };
+
+                    oop.inherits(
+                        ElasticsearchHighlightRules,
+                        TextHighlightRules
+                    );
+
+                    exports.ElasticsearchHighlightRules =
+                        ElasticsearchHighlightRules;
+                }
+            );
+
+
+            // ============================================================
+            // Mode
+            // ============================================================
+
+            ace.define(
+                "ace/mode/elasticsearch",
+                [
+                    "require",
+                    "exports",
+                    "ace/lib/oop",
+                    "ace/mode/text",
+                    "ace/mode/elasticsearch_highlight_rules"
+                ],
+                function (require, exports) {
+
+                    const oop = require("ace/lib/oop");
+
+                    const TextMode =
+                        require("ace/mode/text").Mode;
+
+                    const Rules =
+                        require(
+                            "ace/mode/elasticsearch_highlight_rules"
+                        ).ElasticsearchHighlightRules;
+
+
+                    const Mode = function () {
+                        this.HighlightRules = Rules;
+                    };
+
+                    oop.inherits(
+                        Mode,
+                        TextMode
+                    );
+
+                    (function () {
+
+                        this.$id = "ace/mode/elasticsearch";
+
+                    }).call(Mode.prototype);
+
+                    exports.Mode = Mode;
+                }
+            );
+        }
+        function initAceEditorEs() {
+            const esEditor = ace.edit("esexpr");
+            esEditor.session.setMode("ace/mode/elasticsearch");
+            // esEditor.session.setUseWrapMode(true);
+            esEditor.setTheme("ace/theme/tomorrow");
+            // esEditor.setOptions({ maxLines: 6, minLines: 3, showGutter: false });
+            function syncHeight() {
+                esEditor.resize(true);
+            }
+            function changeValue(value) {
+
+                if (value == null || value == undefined) {
+                    value = "";
+                }
+                document.getElementById('esexprHidden').value = value;
+            }
             const esexpr = document.querySelector("#esexpr");
-            esexpr.addEventListener("keydown", (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                    e.preventDefault();   // stop it from inserting a newline
+            esEditor.session.on("change", () => {
+
+                const value = esEditor.getValue();
+                changeValue(value)
+            });
+            esEditor.commands.addCommand({
+                name: "runQuery",
+                bindKey: {
+                    win: "Ctrl-Enter",
+                    mac: "Command-Enter"
+                },
+                exec: function (editor) {
+                    const value = editor.getValue();
+
+
+                    changeValue(value)
                     document.getElementById('esform').submit()
                 }
             });
+            requestAnimationFrame(syncHeight);
+
+            // คำนวณใหม่ทุกครั้งที่เนื้อหาเปลี่ยน (พิมพ์เพิ่ม/ลบ ทำให้จำนวนบรรทัด wrap เปลี่ยน)
+            esEditor.session.on("change", syncHeight);
+        }
+        function initAceEditorExpr() {
+            const tabulator = new Tabulator(resultTable, {
+                data: [],
+                autoColumns: true,
+                layout: "fitDataStretch",
+                pagination: true,
+                paginationSize: 10
+            });
+            const exprEditor = ace.edit("expr");
+            exprEditor.session.setMode("ace/mode/jsonata");
+            // exprEditor.session.setUseWrapMode(true);
+            exprEditor.setTheme("ace/theme/tomorrow");
+            // exprEditor.setOptions({ maxLines: 6, minLines: 3, showGutter: false });
+            exprEditor.setValue('hits.hits.$merge([{"_id": _id}, _source])', -1);
+            function syncHeight() {
+                exprEditor.resize(true);
+            }
+            // รอ layout นิ่งก่อนคำนวณครั้งแรก
+            requestAnimationFrame(syncHeight);
+
+            // คำนวณใหม่ทุกครั้งที่เนื้อหาเปลี่ยน (พิมพ์เพิ่ม/ลบ ทำให้จำนวนบรรทัด wrap เปลี่ยน)
+            exprEditor.session.on("change", syncHeight);
+
+
             document.querySelector("#run").onclick = async () => {
-                await runQuery();
+                const value = exprEditor.getValue();
+                await runQuery(value);
             };
 
             let debounceTimer = null;
@@ -89,21 +392,63 @@
 
             function scheduleRun(delay = 300) {
                 clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(runQuery, delay);
+                const value = exprEditor.getValue();
+                debounceTimer = setTimeout(async () => {
+                    await runQuery(value);
+                }, delay);
+            }
+            function showTable(rows) {
+                if(rows.length==0) tabulator.clearData()
+                tabulator.setData(rows)
+            }
+            async function runQuery(value) {
+                if (value == null || value.trim() === "") {
+                    showTable([])
+                    return;
+                }
+                const resultTable = document.getElementById("resultTable");
+                try {
+
+                    resultTable.removeAttribute("style")
+                    const element =
+                        document.querySelector("#jsonResponse");
+                    const raw = element.textContent;
+                    if (!raw.trim()) return;
+                    const json3 = JSON.parse(raw);
+                    let rows = await jsonata(value).evaluate(json3);
+                    if (rows) {
+
+                        rows = Array.isArray(rows) ? rows : [rows];
+                        showTable(rows)
+
+                    }
+                } catch (error) {
+                    console.log(error)
+                    resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
+                    resultTable.style.color = "red"
+                }
             }
 
             const expr = document.querySelector("#expr");
-            expr.addEventListener("input", () => scheduleRun(1000));
-            expr.addEventListener("keydown", (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                    e.preventDefault();   // stop it from inserting a newline
-                    clearTimeout(debounceTimer);
-                    runQuery();   // รันทันที ไม่ต้องรอ debounce
+            exprEditor.session.on("change", () => scheduleRun(1000));
+            exprEditor.commands.addCommand({
+                name: "runQuery",
+                bindKey: {
+                    win: "Ctrl-Enter",
+                    mac: "Command-Enter"
+                },
+                exec: function (editor) {
+                    const value = editor.getValue();
+
+                    if (value.trim() === "") {
+                        return;
+                    }
+
+                    runQuery(value);
                 }
             });
-            pretifyJson();
-            // showTable();
-        });
+
+        }
         function pretifyJson() {
             const element =
                 document.querySelector("#jsonResponse");
@@ -131,71 +476,6 @@
 
             Prism.highlightElement(element);
 
-        }
-        function showTable() {
-
-            const element =
-                document.querySelector("#jsonResponse");
-
-            if (!element) return;
-
-            const raw = element.textContent;
-
-            if (!raw.trim()) return;
-            try {
-
-                const json2 = JSON.parse(raw);
-
-
-                // map rows for Tabulator
-                function toRows(res) {
-                    if (res.aggregations) {
-                        const [name, agg] = Object.entries(res.aggregations)[0];
-                        return agg.buckets.map(b => ({ [name]: b.key, count: b.doc_count }));
-                    }
-                    return res.hits.hits.map(h => ({ _id: h._id, _score: h._score, ...h._source }));
-                }
-
-
-                new Tabulator("#resultTable", {
-                    data: toRows(json2),
-                    autoColumns: true,
-                    layout: "fitDataStretch",
-                    pagination: true,
-                    paginationSize: 10
-                });
-            } catch (error) {
-                console.log(error)
-                const resultTable = document.getElementById("resultTable");
-                resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
-            }
-        }
-        async function runQuery() {
-            const resultTable = document.getElementById("resultTable");
-            try {
-
-                resultTable.removeAttribute("style")
-                const element =
-                    document.querySelector("#jsonResponse");
-                const raw = element.textContent;
-                const json3 = JSON.parse(raw);
-
-                let rows = await jsonata(document.querySelector("#expr").value).evaluate(json3);
-                rows = Array.isArray(rows) ? rows : [rows];
-
-
-                new Tabulator(resultTable, {
-                    data: rows,
-                    autoColumns: true,
-                    layout: "fitDataStretch",
-                    pagination: true,
-                    paginationSize: 10
-                });
-            } catch (error) {
-                console.log(error)
-                resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
-                resultTable.style.color = "red"
-            }
         }
     </script>
 </body>
