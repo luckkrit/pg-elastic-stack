@@ -59,7 +59,7 @@
         <div id="resultTable">
 
         </div>
-        <br/>
+        <br />
         <div class="flex gap-2 items-center">
             <h3 class="font-bold py-2">Query JSON using JSONata </h3>
             <a class="link" href="https://try.jsonata.org/">https://try.jsonata.org/</a>
@@ -67,14 +67,42 @@
         <textarea class="textarea" id="expr">hits.hits.$merge([{"_id": _id}, _source])</textarea>
         <p class="py-1 font-bold">Press Ctrl+Enter to execute</p>
         <button class="btn btn-primary my-2" id="run">Query</button>
-        <div id="table"></div>
     </main>
 
-    <script>
+    <script type="module">
+
         document.addEventListener("DOMContentLoaded", () => {
 
+            const esexpr = document.querySelector("#esexpr");
+            esexpr.addEventListener("keydown", (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                    e.preventDefault();   // stop it from inserting a newline
+                    document.getElementById('esform').submit()
+                }
+            });
+            document.querySelector("#run").onclick = async () => {
+                await runQuery();
+            };
+
+            let debounceTimer = null;
+            let runToken = 0;   // กันผลลัพธ์เก่าทับผลลัพธ์ใหม่
+
+            function scheduleRun(delay = 300) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(runQuery, delay);
+            }
+
+            const expr = document.querySelector("#expr");
+            expr.addEventListener("input", () => scheduleRun(300));
+            expr.addEventListener("keydown", (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                    e.preventDefault();   // stop it from inserting a newline
+                    clearTimeout(debounceTimer);
+                    runQuery();   // รันทันที ไม่ต้องรอ debounce
+                }
+            });
             pretifyJson();
-            showTable();
+            // showTable();
         });
         function pretifyJson() {
             const element =
@@ -142,21 +170,11 @@
                 resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
             }
         }
-        const esexpr = document.querySelector("#esexpr");
-        esexpr.addEventListener("keydown", (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();   // stop it from inserting a newline
-                document.getElementById('esform').submit()
-            }
-        });
-    </script>
-
-    <script type="module">
-
         async function runQuery() {
+            const resultTable = document.getElementById("resultTable");
             try {
 
-
+                resultTable.removeAttribute("style")
                 const element =
                     document.querySelector("#jsonResponse");
                 const raw = element.textContent;
@@ -166,7 +184,7 @@
                 rows = Array.isArray(rows) ? rows : [rows];
 
 
-                new Tabulator("#table", {
+                new Tabulator(resultTable, {
                     data: rows,
                     autoColumns: true,
                     layout: "fitDataStretch",
@@ -175,20 +193,10 @@
                 });
             } catch (error) {
                 console.log(error)
-                const resultTable = document.getElementById("table");
                 resultTable.textContent = "Unable to parse JSON for Tabulator table. Displaying raw response instead.";
+                resultTable.style.color = "red"
             }
         }
-        document.querySelector("#run").onclick = async () => {
-            await runQuery();
-        };
-        const expr = document.querySelector("#expr");
-        expr.addEventListener("keydown", (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();   // stop it from inserting a newline
-                runQuery();
-            }
-        });
     </script>
 </body>
 
