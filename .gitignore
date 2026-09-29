@@ -1,2 +1,4 @@
 migrate/target/
 webapp/target/
+classic-webapp/target/
+streamlit-facet-demo/.venv
