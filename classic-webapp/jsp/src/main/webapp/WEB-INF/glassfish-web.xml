@@ -1,0 +1,6 @@
+<glassfish-web-app>
+  <jsp-config>
+    <property name="development" value="true"/>
+    <property name="modificationTestInterval" value="0"/>
+  </jsp-config>
+</glassfish-web-app>
