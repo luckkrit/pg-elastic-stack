@@ -1,4 +1,4 @@
-package org.eclipse.jakarta.hello.model;
+package org.eclipse.classic.web.model;
 
 public class Product {
 

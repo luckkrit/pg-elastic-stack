@@ -1,4 +1,4 @@
-package org.eclipse.jakarta.hello;
+package org.eclipse.classic.web;
 
 import jakarta.ws.rs.core.Application;
 import jakarta.ws.rs.ApplicationPath;

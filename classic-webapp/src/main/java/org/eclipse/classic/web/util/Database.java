@@ -1,4 +1,4 @@
-package org.eclipse.jakarta.hello.util;
+package org.eclipse.classic.web.util;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

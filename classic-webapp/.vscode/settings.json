@@ -7,5 +7,6 @@
                 "cmd": "./scripts/redeploy-cargo.sh"
             }
         ]
-    }
+    },
+    "java.compile.nullAnalysis.mode": "disabled"
 }

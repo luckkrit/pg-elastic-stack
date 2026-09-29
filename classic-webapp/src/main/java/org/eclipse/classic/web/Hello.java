@@ -1,4 +1,4 @@
-package org.eclipse.jakarta.hello;
+package org.eclipse.classic.web;
 
 public class Hello {
 

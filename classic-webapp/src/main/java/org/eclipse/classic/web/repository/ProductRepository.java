@@ -1,7 +1,4 @@
-package org.eclipse.jakarta.hello.repository;
-
-import org.eclipse.jakarta.hello.model.Product;
-import org.eclipse.jakarta.hello.util.Database;
+package org.eclipse.classic.web.repository;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -10,6 +7,9 @@ import java.sql.SQLException;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.eclipse.classic.web.model.Product;
+import org.eclipse.classic.web.util.Database;
 
 public class ProductRepository {
 
