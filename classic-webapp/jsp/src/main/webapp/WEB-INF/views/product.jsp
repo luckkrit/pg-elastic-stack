@@ -5,12 +5,7 @@
                 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 
                     <t:layout title="Products" activePage="products">
-                        <style>
-                            mark {
-                                background-color: #000;
-                                color: #fff;
-                            }
-                        </style>
+                        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/marks.css">
                         <h2 class="text-xl font-semibold my-2">Search Products</h2>
 
                         <%-- Search Form for use in product list --%>
@@ -29,7 +24,7 @@
                                 </form>
 
                                 <p>Total: ${fn:length(products)}</p>
-                                <table id="results" class="table">
+                                <table id="results" class="table" data-query="${fn:escapeXml(q)}">
                                     <thead class="sticky top-0 bg-base-100">
                                         <tr class="border-b">
                                             <th>Product Code</th>
@@ -51,11 +46,7 @@
                                     </tbody>
                                 </table>
                             </c:if>
-                            <!-- <script>
-                                const query = "${fn:escapeXml(q)}";
-                                const words = query.trim().split(/\s+/).filter(w => w.length > 0);
-                                if (words.length > 0) {
-                                    new Mark(document.querySelector('#results')).mark(words, { exclude: [".no-highlight"] });
-                                }
-                            </script> -->
+                            <c:if test="${not es}">
+                                <script src="${pageContext.request.contextPath}/js/marks.js"></script>
+                            </c:if>
                     </t:layout>

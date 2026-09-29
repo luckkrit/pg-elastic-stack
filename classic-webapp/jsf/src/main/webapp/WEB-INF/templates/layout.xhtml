@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:h="jakarta.faces.html" xmlns:ui="jakarta.faces.facelets">
+
+<h:head>
+    <title>
+        <ui:insert name="title">Classic Models</ui:insert>
+    </title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/mark.js/8.6.0/mark.min.js"></script>
+    <ui:insert name="head" />
+</h:head>
+
+<h:body>
+
+    <ui:include src="/WEB-INF/components/navbar.xhtml" />
+
+    <main class="container pt-16 pl-2 pr-2 pb-2">
+        <ui:insert name="content">
+            Default content
+        </ui:insert>
+    </main>
+
+</h:body>
+
+</html>

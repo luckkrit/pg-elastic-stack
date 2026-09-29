@@ -16,9 +16,7 @@
         <li>
           <a href="${ctx}/product" class="${activePage == 'products' ? 'menu-active font-bold' : ''}">Products</a>
         </li>
-        <li>
-          <a href="${ctx}/product-facet-search" class="${activePage == 'product-facet-search' ? 'menu-active font-bold' : ''}">Product Facet Search</a>
-        </li>
+        
       </ul>
     </div>
     <a href="${ctx}/" class="btn btn-ghost text-xl">DEMO</a>
@@ -29,9 +27,7 @@
       <li>
         <a href="${ctx}/product" class="${activePage == 'products' ? 'menu-active font-bold' : ''}">Products</a>
       </li>
-      <li>
-        <a href="${ctx}/product-facet-search" class="${activePage == 'product-facet-search' ? 'menu-active font-bold' : ''}">Product Facet Search</a>
-      </li>
+      
     </ul>
   </div>
 </nav>

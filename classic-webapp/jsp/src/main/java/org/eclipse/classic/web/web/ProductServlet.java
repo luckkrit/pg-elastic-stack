@@ -29,11 +29,13 @@ public class ProductServlet extends HttpServlet {
                 log.info("q = " + q);
                 String es = request.getParameter("es");
                 log.info("es = " + es);
-                if ((q == null || q == "") && (es == null)) {
+                if ((es == null)) {
+                        var products = repository.search(q);
+                        request.setAttribute("q", q);
+                        request.setAttribute("es", es != null);
                         request.setAttribute(
                                         "products",
-                                        repository.findAll());
-                        var products = repository.findAll();
+                                        products);
                         log.info("fetch database products1 = "+products.size());
                 } else {
                         request.setAttribute("q", q);

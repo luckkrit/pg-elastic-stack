@@ -1,69 +1,66 @@
-<!DOCTYPE html>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" xmlns:h="jakarta.faces.html" xmlns:f="jakarta.faces.core"
+    xmlns:ui="jakarta.faces.facelets" template="/WEB-INF/templates/layout.xhtml">
+    <ui:param name="activePage" value="products" />
+    <ui:define name="title">
+        Products
+    </ui:define>
 
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
+    <ui:define name="head">
+        <h:outputStylesheet library="css" name="marks.css" />
+        <script src="https://cdn.jsdelivr.net/mark.js/8.6.0/mark.min.js"></script>
+    </ui:define>
 
-<h:head>
-    <title>Products - JSF</title>
+    <ui:define name="content">
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 30px;
-        }
+        <h2 class="text-xl font-semibold my-2">Search Products</h2>
 
-        table {
-            border-collapse: collapse;
-            width: 100%;
-        }
+        <h:form class="flex items-center gap-4">
+            <h:inputText value="#{productBean.q}" placeholder="Search products" class="input input-bordered" />
 
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px 12px;
-            text-align: left;
-        }
+            <label class="label cursor-pointer gap-2">
 
-        th {
-            background-color: #f3f3f3;
-        }
-    </style>
+                <h:selectBooleanCheckbox value="#{productBean.es}" class="checkbox" />
+                <h:outputText value=" Use Elasticsearch" />
+            </label>
 
-</h:head>
+            <h:commandButton value="Search" action="#{productBean.load}" class="btn btn-primary" />
+        </h:form>
 
-<h:body>
 
-    <h1>Products - JSF</h1>
+        <p>Total: #{productBean.products.size()}</p>
 
-    <h:dataTable value="#{productBean.products}"
-                 var="product">
+        <table id="results" class="table" data-query="#{productBean.q}">
+            <thead class="sticky top-0 bg-base-100">
+                <tr class="border-b">
+                    <th>Product Code</th>
+                    <th>Product Line</th>
+                    <th>Product Name</th>
+                    <th>Product Description</th>
+                </tr>
+            </thead>
 
-        <h:column>
-            <f:facet name="header">
-                Product Code
-            </f:facet>
+            <tbody>
+                <ui:repeat value="#{productBean.products}" var="product">
+                    <tr class="border-b">
+                        <td>#{product.productCode}</td>
 
-            #{product.productCode}
-        </h:column>
+                        <td class="no-highlight">
+                            #{product.productLine}
+                        </td>
 
-        <h:column>
-            <f:facet name="header">
-                Product Name
-            </f:facet>
+                        <td>
+                            <h:outputText value="#{product.productName}" escape="false" />
+                        </td>
 
-            #{product.productName}
-        </h:column>
+                        <td>
+                            <h:outputText value="#{product.productDescription}" escape="false" />
+                        </td>
+                    </tr>
+                </ui:repeat>
+            </tbody>
+        </table>
 
-        <h:column>
-            <f:facet name="header">
-                Product Line
-            </f:facet>
+        <h:outputScript library="js" name="marks.js" target="body" rendered="#{not productBean.es}" />
+    </ui:define>
 
-            #{product.productLine}
-        </h:column>
-
-    </h:dataTable>
-
-</h:body>
-
-</html>
+</ui:composition>

@@ -15,17 +15,23 @@ public class ProductRepository {
 
     public List<Product> search(String q) {
         List<Product> products = new ArrayList<>();
-        String sql = """
-                                select p.productcode, p.productname, p.productdescription, p.productline, p.buyprice, p.msrp from classicmodels.products p
-                where lower(p.productname) like lower(concat('%', ?, '%'))
-                   or lower(p.productdescription) like lower(concat('%', ?, '%'))
-                        """;
+        String sql = (q == null || q.isBlank())
+                ? """
+                        select p.productcode, p.productname, p.productdescription, p.productline, p.buyprice, p.msrp from classicmodels.products p
+                        """
+                : """
+                        select p.productcode, p.productname, p.productdescription, p.productline, p.buyprice, p.msrp from classicmodels.products p
+                        where lower(p.productname) like lower(concat('%', ?, '%'))
+                           or lower(p.productdescription) like lower(concat('%', ?, '%'))
+                                """;
         try (
                 Connection conn = Database.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql);) {
 
-            ps.setString(1, q);
-            ps.setString(2, q);
+            if (q != null && !q.isBlank()) {
+                ps.setString(1, q);
+                ps.setString(2, q);
+            }
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
 
