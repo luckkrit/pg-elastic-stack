@@ -1,12 +1,26 @@
 {
   "version": "2.0.0",
   "tasks": [
-{
-  "label": "Cargo Start",
-  "type": "shell",
-  "command": "./mvnw package cargo:run",
-  "isBackground": false,
-  "problemMatcher": []
-}
+    {
+      "label": "Cargo Start",
+      "type": "shell",
+      "command": "./mvnw clean package cargo:run",
+      "isBackground": false,
+      "problemMatcher": []
+    },
+    {
+      "label": "View log",
+      "type": "shell",
+      "command": "tail -f target/cargo/configurations/glassfish7x/cargo-domain/logs/server.log",
+      "isBackground": false,
+      "problemMatcher": []
+    },
+    {
+      "label": "Kill Glassfish",
+      "type": "shell",
+      "command": "fuser -k 4848/tcp",
+      "isBackground": false,
+      "problemMatcher": []
+    }
   ]
 }

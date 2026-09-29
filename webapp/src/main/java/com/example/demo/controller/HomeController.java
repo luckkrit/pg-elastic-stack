@@ -64,9 +64,9 @@ public class HomeController {
 			@RequestParam(defaultValue = "false") boolean es, Model model) {
 		List<?> results = List.of();
 		if (q != null && !q.isBlank()) {
-			// results = es ? productSearchRepository.search(q.trim())
-			// : productRepository.search(q.trim());
-			results = productRepository.search(q.trim());
+			results = es ? productSearchService.search(q.trim())
+			: productRepository.search(q.trim());
+			// results = productRepository.search(q.trim());
 		}
 		model.addAttribute("results", results);
 		model.addAttribute("q", q);

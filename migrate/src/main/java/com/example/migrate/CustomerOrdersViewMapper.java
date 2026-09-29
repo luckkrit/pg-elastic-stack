@@ -13,6 +13,23 @@ public class CustomerOrdersViewMapper extends DocumentMapper {
 
     @Override
     public void migrate() throws java.sql.SQLException, java.io.IOException {
+
+        final String createView = """
+                CREATE OR REPLACE VIEW ClassicModels.customer_orders_view AS
+                SELECT
+                    o.orderNumber,
+                    o.orderDate,
+                    o.status,
+                    o.comments,
+                    c.customerNumber,
+                    c.customerName,
+                    c.country
+                FROM ClassicModels.Orders o
+                JOIN ClassicModels.Customers c
+                    ON o.customerNumber = c.customerNumber;
+                """;
+        execute(createView);
+
         processQuery("select * from classicmodels.customer_orders_view", new ResultSetHandler() {
             @Override
             public void handle(java.sql.ResultSet rs) {

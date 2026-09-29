@@ -14,6 +14,21 @@ public class ProductSearchMapper extends DocumentMapper {
 
     @Override
     public void migrate() throws SQLException, IOException {
+
+        final String createView = """
+                CREATE OR REPLACE VIEW ClassicModels.products_search_view AS
+                SELECT
+                    p.productCode,
+                    p.productName,
+                    p.productLine,
+                    p.productDescription,
+                    pl.textDescription AS productLineDescription
+                FROM ClassicModels.Products p
+                JOIN ClassicModels.ProductLines pl
+                    ON p.productLine = pl.productLine;
+                                """;
+        execute(createView);
+
         processQuery("select * from classicmodels.products_search_view", new ResultSetHandler() {
             @Override
             public void handle(ResultSet rs) {
@@ -82,5 +97,4 @@ public class ProductSearchMapper extends DocumentMapper {
             }
         });
     }
-
 }

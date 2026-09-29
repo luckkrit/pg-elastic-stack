@@ -1,62 +1,85 @@
 package org.eclipse.classic.web.repository;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
+import java.io.StringReader;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.rest5_client.Rest5ClientTransport;
-import co.elastic.clients.transport.rest5_client.low_level.Rest5Client;
-import org.apache.hc.core5.http.HttpHost;
 import org.eclipse.classic.web.model.Product;
+import org.eclipse.classic.web.util.Elasticsearch;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
 
-@ApplicationScoped
 public class ProductSearchRepository {
 
-    private Rest5ClientTransport transport;
-    private ElasticsearchClient client;
-
-    @PostConstruct
-    void init() {
-        JsonMapper mapper = JsonMapper.builder()
-                .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .build();
-
-        Rest5Client restClient = Rest5Client
-                .builder(new HttpHost("http", "localhost", 9200))
-                .build();
-        transport = new Rest5ClientTransport(restClient, new JacksonJsonpMapper(mapper));
-        client = new ElasticsearchClient(transport);
-    }
-
-    @PreDestroy
-    void close() {
-        try {
-            transport.close();
-        } catch (IOException e) {
-            // ปิดไม่สำเร็จตอน undeploy ก็ไม่มีอะไรทำต่อ แค่ไม่ให้ทำให้ deploy พัง
-        }
-    }
+    // private static final Logger log = Logger.getLogger(ProductSearchRepository.class.getName());
 
     public List<Product> search(String q) throws IOException {
-        var res = client.search(s -> s
-                .index("products")
-                .query(qb -> (q == null || q.isBlank())
-                        ? qb.matchAll(m -> m)
-                        : qb.multiMatch(m -> m
-                                .fields("productname", "productline", "productdescription")
-                                .query(q))),
+        String json = (q == null || q.isBlank())
+                ? """
+                        { "query": { "match_all": {} } }
+                        """
+                : """
+                        {
+                                  "query": {
+                                    "multi_match": {
+                                      "query": %s,
+                                      "fields": ["productname", "productdescription"]
+                                    }
+                                  },
+                                  "highlight": {
+                                    "pre_tags": ["<mark>"],
+                                    "post_tags": ["</mark>"],
+                                    "fields": [
+                                    {
+                                      "productname": {}
+                                    },
+                                    {
+                                      "productdescription": {}
+                                    }
+                                    ]
+                                  }
+                                }
+                                                """.formatted(Elasticsearch.MAPPER.writeValueAsString(q));
+
+        SearchRequest.Builder builder = new SearchRequest.Builder();
+        builder.index("products");
+        builder.withJson(new StringReader(json));
+
+        var res = Elasticsearch.CLIENT.search(
+                builder.build(),
                 Product.class);
 
-        return res.hits().hits().stream().map(Hit::source).toList();
+        // log.info("json = "+json);
+        // log.info("res = " + res.toString());
+
+        List<Product> products = new ArrayList<>();
+
+        for (var hit : res.hits().hits()) {
+            Product p = hit.source();
+
+            if (p == null) {
+                continue;
+            }
+
+            var hl = hit.highlight();
+
+            if (hl != null) {
+                if (hl.containsKey("productname")) {
+                    p.setProductName(
+                            String.join(" ", hl.get("productname")));
+                }
+
+                if (hl.containsKey("productdescription")) {
+                    p.setProductDescription(
+                            String.join(" ", hl.get("productdescription")));
+                }
+            }
+
+            products.add(p);
+        }
+
+        return products;
     }
 }

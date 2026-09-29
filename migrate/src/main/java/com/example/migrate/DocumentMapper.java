@@ -68,6 +68,13 @@ public abstract class DocumentMapper {
                 throws SQLException, IOException;
     }
 
+    protected void execute(String sql) throws SQLException {
+        try (Connection conn = DriverManager.getConnection(pgUrl, pgUsername, pgPassword);
+                Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
     protected void processQuery(
             String sql,
             ResultSetHandler handler)
