@@ -44,25 +44,31 @@ interface SearchResponse {
     aggregations: {
         by_productline: {
             buckets: Bucket[]
+        },
+        by_price: {
+            buckets: Bucket[]
         }
     }
 }
 
+const selectedProductLines = ref<string>()
+const selectedPriceRanges = ref<string>()
 const keyword = ref('')
 const toast = useToast()
 const { data, refresh, pending, error } =
     await useFetch<SearchResponse>('/api/products', {
         query: {
-            q: keyword
-        }
+            q: keyword,
+            productline: selectedProductLines,
+            rangePrice: selectedPriceRanges
+        },
+        watch: false
     })
 
 function search() {
     refresh()
 }
-const selectedProductLines = ref<string[]>([])
-const priceRanges = ref<string[]>([])
-const selectedPriceRanges = ref<string[]>([])
+
 watch(pending, (isPending) => {
     if (isPending) {
         toast.add({
@@ -71,6 +77,8 @@ watch(pending, (isPending) => {
             icon: 'i-lucide-loader-circle',
             duration: 0 // stays open until manually closed/updated
         })
+    } else {
+        toast.remove('loading')
     }
 })
 
@@ -97,15 +105,23 @@ const rows = computed<Row[]>(() => {
 }
 )
 const productLines = computed<CheckboxGroupItem[]>(() => {
-    console.log(data.value)
     if (data.value?.aggregations?.by_productline && Array.isArray(data.value?.aggregations?.by_productline?.buckets)) {
-        return data.value?.aggregations?.by_productline.buckets.map((bucket) => ({ label: `${bucket.key} (${bucket.doc_count})`, description: '', value: bucket.key }))
+        const lines = data.value?.aggregations?.by_productline.buckets.map((bucket) => ({ label: `${bucket.key} (${bucket.doc_count})`, description: '', value: bucket.key }))
+        const none: CheckboxGroupItem = { label: 'None', description: '', value: undefined }
+        return [none, ...lines]
     }
     return []
 })
-watch(selectedProductLines, (data) => {
-    console.log(data)
+
+const priceRanges = computed<CheckboxGroupItem[]>(() => {
+    if (data.value?.aggregations?.by_price && Array.isArray(data.value?.aggregations?.by_price?.buckets)) {
+        const rangePrices = data.value?.aggregations?.by_price.buckets.map((bucket) => ({ label: `${bucket.key} (${bucket.doc_count})`, description: '', value: `${bucket.from ?? 0}:${bucket.to ?? 0}` }))
+        const none: CheckboxGroupItem = { label: 'None', description: '', value: undefined }
+        return [none, ...rangePrices]
+    }
+    return []
 })
+
 </script>
 
 <template>
@@ -117,21 +133,24 @@ watch(selectedProductLines, (data) => {
                     Product Line
                 </h3>
                 <div class="p-2 w-full">
-                    <UCheckboxGroup v-model="selectedProductLines" :items="productLines" />
+                    <URadioGroup v-model="selectedProductLines" :items="productLines" />
                 </div>
                 <h3 class="font-bold">
                     Price Range
                 </h3>
                 <div class="p-2 w-full">
                     <div class="p-2 w-full">
-                        <UCheckboxGroup v-model="selectedPriceRanges" :items="priceRanges" />
+                        <URadioGroup v-model="selectedPriceRanges" :items="priceRanges" />
                     </div>
                 </div>
             </div>
             <div class="flex-1 p-2 bg-slate-200">
                 <div>
-                    <UInput v-model="keyword" placeholder="Search product..." @keyup.enter="search" />
-                    <UTable :data="rows" class="flex-1" />
+                    <UFieldGroup>
+                        <UInput v-model="keyword" placeholder="Search..." @keyup.enter="search" />
+                        <UButton icon="i-lucide-search" @click="search" />
+                    </UFieldGroup>
+                    <UTable :data="rows" class="flex-1" :ui="{ td: 'whitespace-normal' }" />
                 </div>
             </div>
         </div>

@@ -5,6 +5,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     elasticsearchUrl: process.env.ELASTICSEARCH_URL || "http://127.0.0.1:9200"
   },
-  modules: ['@nuxt/ui'],
+  modules: ['@nuxt/ui', '@vueuse/nuxt'],
   css: ['~/assets/css/main.css']
 })
