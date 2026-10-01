@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,6 +35,7 @@ public class ProductLineFacetSearchController {
     @GetMapping("/product-facet-search")
     public String productFacetSearch(@RequestParam(required = false) String selectedProductLine,
             @RequestParam(required = false) Double minPrice, @RequestParam(required = false) Double maxPrice,
+            @ModelAttribute("link") ProductLineFacetLink link,
             Model model) {
         try {
             SearchResponse<ProductDocument> searchResponse = productLineFacetSearchService.search(selectedProductLine,
