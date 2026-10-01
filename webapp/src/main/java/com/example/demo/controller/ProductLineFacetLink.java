@@ -21,8 +21,11 @@ public class ProductLineFacetLink {
         return b.build().encode().toUriString();
     }
 
-    public String urlProductLinePrice(String selectedProductLine, Double minPrice, Double maxPrice) {
+    public String urlProductLinePrice(String q,String selectedProductLine, Double minPrice, Double maxPrice) {
         Map<String, Object> p = new HashMap<>();
+        if (q != null){
+            p.put("q", q);
+        }
         if (selectedProductLine != null) {
             p.put("selectedProductLine", selectedProductLine);
         }

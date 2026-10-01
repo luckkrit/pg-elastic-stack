@@ -10,15 +10,13 @@
                     <h2 class="text-md font-bold my-2">Product Lines</h2>
                     <ul class="menu rounded-box w-56">
                         <li>
-                            <a 
-                                th:href="${link.urlProductLinePrice(null,minPrice,maxPrice)}" th:classappend="${selectedProductLine == null or selectedProductLine == ''}
+                            <a th:href="${link.urlProductLinePrice(q,null,minPrice,maxPrice)}" th:classappend="${selectedProductLine == null or selectedProductLine == ''}
        ? 'font-bold menu-active' : ''">
                                 All
                             </a>
                         </li>
                         <li th:each="bucket : ${productLineFacets}">
-                            <a 
-                                th:href="${link.urlProductLinePrice(bucket.name,minPrice,maxPrice)}"
+                            <a th:href="${link.urlProductLinePrice(q,bucket.name,minPrice,maxPrice)}"
                                 th:classappend="${selectedProductLine == bucket.name} ? 'font-bold menu-active' : ''"
                                 th:text="|${bucket.name} (${bucket.count})|">
                             </a>
@@ -27,12 +25,12 @@
                     <h2 class="text-md font-bold my-2">Price Ranges</h2>
                     <ul class="menu rounded-box w-56">
                         <li>
-                            <a th:href="${link.urlProductLinePrice(selectedProductLine,null,null)}"
+                            <a th:href="${link.urlProductLinePrice(q,selectedProductLine,null,null)}"
                                 th:classappend="${minPrice == null and maxPrice == null} ? 'font-bold menu-active' : ''">None</a>
                         </li>
                         <li th:each="bucket : ${productPriceRangeFacets}">
-<a 
-                                th:href="${link.urlProductLinePrice(selectedProductLine,bucket.from,bucket.to)}" th:classappend="${minPrice == bucket.from and maxPrice == bucket.to}
+                            <a th:href="${link.urlProductLinePrice(q,selectedProductLine,bucket.from,bucket.to)}"
+                                th:classappend="${minPrice == bucket.from and maxPrice == bucket.to}
        ? 'font-bold menu-active' : ''" th:text="|${bucket.name} (${bucket.count})|">
                             </a>
                         </li>
@@ -40,13 +38,22 @@
                 </div>
             </div>
             <div class="flex-1">
+                <form
+                    th:action="@{/product-facet-search(selectedProductLine = ${selectedProductLine}, minPrice = ${minPrice}, maxPrice = ${maxPrice})}">
+
+                    <label class="join mb-2">
+                        <input name="q" type="text" th:value="${q}" placeholder="product name, product description" />
+                        <button class="btn btn-neutral join-item">Search</button>
+                    </label>
+                </form>
                 <h1 class="text-md font-bold border-b-1">Total : <span th:text="${#lists.size(products)}"></span></h1>
                 <table class="table">
                     <thead>
                         <tr>
                             <th>Product Code</th>
-                            <th>Product Name</th>
                             <th>Product Line</th>
+                            <th>Product Name</th>
+                            <th>Product Description</th>
                             <th>Buy Price</th>
                         </tr>
                     </thead>
@@ -56,9 +63,10 @@
 
                             <td th:text="${product.productcode}"></td>
 
-                            <td th:text="${product.productname}"></td>
-
                             <td th:text="${product.productline}"></td>
+                            <td th:utext="${product.productname}"></td>
+                            <td th:utext="${product.productdescription}"></td>
+
 
                             <td th:text="${product.buyprice}"></td>
 

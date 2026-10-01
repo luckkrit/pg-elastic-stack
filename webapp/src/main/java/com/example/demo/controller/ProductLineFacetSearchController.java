@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.io.IOException;
@@ -25,67 +26,90 @@ import com.example.demo.elasticsearch.ProductDocument;
 
 @Controller
 public class ProductLineFacetSearchController {
-    private static final Logger log = LoggerFactory.getLogger(ProductLineFacetSearchController.class);
-    private final ProductLineFacetSearchService productLineFacetSearchService;
+        private static final Logger log = LoggerFactory.getLogger(ProductLineFacetSearchController.class);
+        private final ProductLineFacetSearchService productLineFacetSearchService;
 
-    public ProductLineFacetSearchController(ProductLineFacetSearchService productLineFacetSearchService) {
-        this.productLineFacetSearchService = productLineFacetSearchService;
-    }
-
-    @GetMapping("/product-facet-search")
-    public String productFacetSearch(@RequestParam(required = false) String selectedProductLine,
-            @RequestParam(required = false) Double minPrice, @RequestParam(required = false) Double maxPrice,
-            @ModelAttribute("link") ProductLineFacetLink link,
-            Model model) {
-        try {
-            SearchResponse<ProductDocument> searchResponse = productLineFacetSearchService.search(selectedProductLine,
-                    minPrice, maxPrice);
-            log.info("Found {} hits", searchResponse.hits().hits().size());
-            log.info("Hits: {}", searchResponse.hits().hits());
-            log.info("Aggs: {}", searchResponse.aggregations());
-            List<ProductDocument> products = searchResponse.hits()
-                    .hits()
-                    .stream()
-                    .map(Hit::source)
-                    .filter(Objects::nonNull)
-                    .toList();
-            List<ProductLineFacetOption> productLineFacets = searchResponse.aggregations()
-                    .get("by_productline")
-                    .sterms()
-                    .buckets()
-                    .array()
-                    .stream()
-                    .map(bucket -> new ProductLineFacetOption(
-                            bucket.key().stringValue(),
-                            bucket.docCount()))
-                    .toList();
-            List<ProductPriceRangeFacetOption> productPriceRangeFacets = searchResponse.aggregations()
-                    .get("by_price")
-                    .range()
-                    .buckets()
-                    .array()
-                    .stream()
-                    .map(bucket -> new ProductPriceRangeFacetOption(
-                            bucket.key(),
-                            bucket.docCount(),
-                            bucket.from(),
-                            bucket.to()))
-                    .toList();
-
-            model.addAttribute(
-                    "productLineFacets",
-                    productLineFacets);
-            model.addAttribute(
-                    "productPriceRangeFacets",
-                    productPriceRangeFacets);
-            model.addAttribute("products", products);
-            log.info("selectedProductLine: {}", selectedProductLine==null);
-            model.addAttribute("selectedProductLine", selectedProductLine);
-            model.addAttribute("minPrice", minPrice);
-            model.addAttribute("maxPrice", maxPrice);
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error during Elasticsearch search", e);
+        public ProductLineFacetSearchController(ProductLineFacetSearchService productLineFacetSearchService) {
+                this.productLineFacetSearchService = productLineFacetSearchService;
         }
-        return "product_facet_search";
-    }
+
+        @GetMapping("/product-facet-search")
+        public String productFacetSearch(@RequestParam(required = false) String q,
+                        @RequestParam(required = false) String selectedProductLine,
+                        @RequestParam(required = false) Double minPrice,
+                        @RequestParam(required = false) Double maxPrice,
+                        @ModelAttribute("link") ProductLineFacetLink link,
+                        Model model) {
+                try {
+
+                        SearchResponse<ProductDocument> searchResponse = productLineFacetSearchService.search(q,
+                                        selectedProductLine,
+                                        minPrice, maxPrice);
+                        log.info("Found {} hits", searchResponse.hits().hits().size());
+                        log.info("Hits: {}", searchResponse.hits().hits());
+                        log.info("Aggs: {}", searchResponse.aggregations());
+                        List<ProductDocument> products = new ArrayList<>();
+                        for (var hit : searchResponse.hits().hits()) {
+                                ProductDocument p = hit.source();
+
+                                if (p == null) {
+                                        continue;
+                                }
+
+                                var hl = hit.highlight();
+
+                                if (hl != null) {
+                                        if (hl.containsKey("productname")) {
+                                                p.setProductname(
+                                                                String.join(" ", hl.get("productname")));
+                                        }
+
+                                        if (hl.containsKey("productdescription")) {
+                                                p.setProductdescription(
+                                                                String.join(" ", hl.get("productdescription")));
+                                        }
+                                }
+
+                                products.add(p);
+                        }
+                        List<ProductLineFacetOption> productLineFacets = searchResponse.aggregations()
+                                        .get("by_productline")
+                                        .sterms()
+                                        .buckets()
+                                        .array()
+                                        .stream()
+                                        .map(bucket -> new ProductLineFacetOption(
+                                                        bucket.key().stringValue(),
+                                                        bucket.docCount()))
+                                        .toList();
+                        List<ProductPriceRangeFacetOption> productPriceRangeFacets = searchResponse.aggregations()
+                                        .get("by_price")
+                                        .range()
+                                        .buckets()
+                                        .array()
+                                        .stream()
+                                        .map(bucket -> new ProductPriceRangeFacetOption(
+                                                        bucket.key(),
+                                                        bucket.docCount(),
+                                                        bucket.from(),
+                                                        bucket.to()))
+                                        .toList();
+                        model.addAttribute("q", q);
+                        model.addAttribute(
+                                        "productLineFacets",
+                                        productLineFacets);
+                        model.addAttribute(
+                                        "productPriceRangeFacets",
+                                        productPriceRangeFacets);
+                        model.addAttribute("products", products);
+                        log.info("selectedProductLine: {}", selectedProductLine == null);
+                        model.addAttribute("selectedProductLine", selectedProductLine);
+                        model.addAttribute("minPrice", minPrice);
+                        model.addAttribute("maxPrice", maxPrice);
+                } catch (IOException e) {
+                        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                                        "Error during Elasticsearch search", e);
+                }
+                return "product_facet_search";
+        }
 }
