@@ -49,6 +49,13 @@ export default defineEventHandler(async (event) => {
                     ]
                 }
             }
+        },
+        "highlight": {
+            "pre_tags": ["<mark class='badge badge-neutral'>"],
+            "post_tags": ["</mark>"],
+            "fields": [{
+                "productname": {}
+            }, { "productdescription": {} }]
         }
     }
 

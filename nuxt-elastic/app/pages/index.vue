@@ -30,16 +30,20 @@ interface Bucket {
 interface SearchHit {
     _id: string
     _score: number
-    _source: Product
+    _source: Product,
+    highlight?: Highlight
 }
-
+interface Highlight {
+    productname?: string[]
+    productdescription?: string[]
+}
 interface SearchResponse {
     hits: {
         total: {
             value: number
             relation: string
         }
-        hits: SearchHit[]
+        hits: SearchHit[],
     },
     aggregations: {
         by_productline: {
@@ -68,7 +72,13 @@ const { data, refresh, pending, error } =
 function search() {
     refresh()
 }
-
+watch(
+    [selectedProductLines, selectedPriceRanges],
+    () => {
+        refresh()
+    },
+    { deep: true }
+)
 watch(pending, (isPending) => {
     if (isPending) {
         toast.add({
@@ -95,11 +105,18 @@ watch(error, (err) => {
 })
 const rows = computed<Row[]>(() => {
     if (data.value?.hits && Array.isArray(data.value?.hits.hits)) {
-        return data.value?.hits?.hits.map((hit: SearchHit) => ({
-            id: hit._id,
-            score: hit._score,
-            ...hit._source
-        })) ?? []
+        const raws = data.value?.hits.hits.map((hit: SearchHit) => {
+            const productdescription = hit.highlight?.productdescription?.join(',').replaceAll('<mark>', '<UBadge color="neutral" variant="outline">') || hit._source.productdescription
+            const productname = hit.highlight?.productname?.join(',').replaceAll('<mark>', '<UBadge color="neutral" variant="outline">') || hit._source.productname
+            return ({
+                id: hit._id,
+                score: hit._score,
+                ...hit._source,
+                productdescription,
+                productname
+            })
+        }) ?? []
+        return raws
     }
     return []
 }
@@ -128,7 +145,7 @@ const priceRanges = computed<CheckboxGroupItem[]>(() => {
     <main class="py-2">
         <h1 class="font-bold text-xl mb-2">Product Search</h1>
         <div class="flex gap-2">
-            <div class="w-60 p-2 bg-lime-50">
+            <div class="w-60 p-2 ">
                 <h3 class="font-bold">
                     Product Line
                 </h3>
@@ -144,39 +161,22 @@ const priceRanges = computed<CheckboxGroupItem[]>(() => {
                     </div>
                 </div>
             </div>
-            <div class="flex-1 p-2 bg-slate-200">
+            <div class="flex-1 p-2 ">
                 <div>
                     <UFieldGroup>
                         <UInput v-model="keyword" placeholder="Search..." @keyup.enter="search" />
                         <UButton icon="i-lucide-search" @click="search" />
                     </UFieldGroup>
-                    <UTable :data="rows" class="flex-1" :ui="{ td: 'whitespace-normal' }" />
+                    <UTable :data="rows" class="flex-1" :ui="{ td: 'whitespace-normal' }">
+                        <template #productdescription-cell="{ row }">
+                            <div class="whitespace-normal" v-html="row.original.productdescription"></div>
+                        </template>
+                        <template #productname-cell="{ row }">
+                            <div class="whitespace-normal" v-html="row.original.productname"></div>
+                        </template>
+                    </UTable>
                 </div>
             </div>
         </div>
-        <!-- 
-        <input v-model="keyword" placeholder="Search product..." @keyup.enter="search">
-
-        <button @click="search">
-            Search
-        </button>
-
-        <p v-if="pending">
-            Loading...
-        </p>
-
-        <p v-if="error">
-            {{ error }}
-        </p>
-
-        <div v-for="hit in data?.hits.hits ?? []" :key="hit._id">
-            <h3>{{ hit._source.productname }}</h3>
-
-            <p>{{ hit._source.productline }}</p>
-
-            <p>Price: {{ hit._source.buyprice }}</p>
-
-            <p>Score: {{ hit._score }}</p>
-        </div> -->
     </main>
 </template>
