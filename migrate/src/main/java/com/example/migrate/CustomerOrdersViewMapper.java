@@ -40,7 +40,9 @@ public class CustomerOrdersViewMapper extends DocumentMapper {
                         if (!rs.next())
                             break;
                         String orderNumber = rs.getString("ordernumber");
-                        String orderDate = rs.getString("orderdate");
+                        java.sql.Timestamp ts = rs.getTimestamp("orderdate");
+                        String orderDate = ts == null ? null
+                                : ts.toLocalDateTime().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                         String status = rs.getString("status");
                         String comments = rs.getString("comments");
                         String customerNumber = rs.getString("customernumber");
