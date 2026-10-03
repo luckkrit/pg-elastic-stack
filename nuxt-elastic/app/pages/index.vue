@@ -1,66 +1,12 @@
 <script setup lang="ts">
 import type { CheckboxGroupItem } from '@nuxt/ui'
-interface Row {
-
-    id: string
-    score: number
-    productcode: string
-    productname: string
-    productline: string
-    productdescription: string
-    buyprice: number
-    msrp: number
-    quantityinstock: number
-}
-interface Product {
-    productcode: string
-    productname: string
-    productline: string
-    productdescription: string
-    buyprice: number
-    msrp: number
-    quantityinstock: number
-}
-interface Bucket {
-    key: string
-    from: number
-    to: number
-    doc_count: number
-}
-interface SearchHit {
-    _id: string
-    _score: number
-    _source: Product,
-    highlight?: Highlight
-}
-interface Highlight {
-    productname?: string[]
-    productdescription?: string[]
-}
-interface SearchResponse {
-    hits: {
-        total: {
-            value: number
-            relation: string
-        }
-        hits: SearchHit[],
-    },
-    aggregations: {
-        by_productline: {
-            buckets: Bucket[]
-        },
-        by_price: {
-            buckets: Bucket[]
-        }
-    }
-}
-
+import type { ProductRow, SearchHit, SearchResponse } from '~/types'
 const selectedProductLines = ref<string>()
 const selectedPriceRanges = ref<string>()
 const keyword = ref('')
 const toast = useToast()
 const { data, refresh, pending, error } =
-    await useFetch<SearchResponse>('/api/products', {
+    await useFetch<SearchResponse>('/api/search/products', {
         query: {
             q: keyword,
             productline: selectedProductLines,
@@ -103,7 +49,7 @@ watch(error, (err) => {
         })
     }
 })
-const rows = computed<Row[]>(() => {
+const rows = computed<ProductRow[]>(() => {
     if (data.value?.hits && Array.isArray(data.value?.hits.hits)) {
         const raws = data.value?.hits.hits.map((hit: SearchHit) => {
             const productdescription = hit.highlight?.productdescription?.join(',').replaceAll('<mark>', '<UBadge color="neutral" variant="outline">') || hit._source.productdescription
