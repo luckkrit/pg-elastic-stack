@@ -145,24 +145,10 @@ const corpus = {
     5: "search data is so fun"
 };
 
-const engine = new BM25SearchEngine();
+export const engine = new BM25SearchEngine();
 for (const [docId, text] of Object.entries(corpus)) {
     engine.addDocument(Number(docId), text);
 }
 
 console.log(engine.search("search data"));
 
-
-Bun.serve({
-    port: 3000,
-    fetch(req) {
-        const url = new URL(req.url);
-
-        if (url.pathname === "/search") {
-            const q = url.searchParams.get("q") ?? "";
-            return Response.json(engine.search(q));
-        }
-
-        return new Response("Not found", { status: 404 });
-    },
-});

@@ -5,6 +5,7 @@
   },
   "scripts": {
     "start": "bun run index.ts",
-    "dev": "bun --watch index.ts"
+    "dev": "bun --watch index.ts",
+    "server": "bun --watch server.ts"
   }
 }
