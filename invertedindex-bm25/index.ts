@@ -142,6 +142,7 @@ const corpus = {
     2: "search search search is fun",
     3: "kibana shows data in charts",
     4: "learn python for data science",
+    5: "search data is so fun"
 };
 
 const engine = new BM25SearchEngine();
@@ -149,4 +150,4 @@ for (const [docId, text] of Object.entries(corpus)) {
     engine.addDocument(Number(docId), text);
 }
 
-console.log(engine.search("search"));
+console.log(engine.search("search data"));
