@@ -3,6 +3,19 @@ interface Posting {
     tf: number;
 }
 
+export interface BM25Response {
+    docId: number;
+    score: number;
+    tf: number;
+    idf: number;
+    k1: number;
+    b: number;
+    dl: number;
+    avgdl: number;
+    query: string;
+    source: string;
+}
+
 class InvertedIndex {
     index: Map<string, Posting[]> = new Map();
 
@@ -10,110 +23,130 @@ class InvertedIndex {
         if (!this.index.has(term)) {
             this.index.set(term, []);
         }
-
         this.index.get(term)!.push(posting);
     }
+
     get(term: string): Posting[] {
-        return this.index.get(term) || []
+        return this.index.get(term) || [];
     }
 }
 
-class Documents {
-    index: InvertedIndex;
-    docs: Map<number, string[]>;
-    avgdl: number
-    constructor() {
-        this.avgdl = 0;
-        this.index = new InvertedIndex()
-        this.docs = new Map()
+class DocumentStore {
+    docs: Map<number, string[]> = new Map();
+    raws: Map<number, string> = new Map();
+    totalTokens = 0;
+
+    add(docId: number, text: string, tokens: string[]) {
+        if (this.docs.has(docId)) {
+            this.totalTokens -= this.docs.get(docId)!.length;
+        }
+        this.totalTokens += tokens.length;
+        this.docs.set(docId, tokens);
+        this.raws.set(docId, text);
     }
-    tokenize(text: string) {
+
+    getLength(docId: number): number {
+        return this.docs.get(docId)?.length || 0;
+    }
+
+    getSource(docId: number): string {
+        return this.raws.get(docId) || "";
+    }
+
+    size(): number {
+        return this.docs.size;
+    }
+
+    getAvgdl(): number {
+        return this.size() === 0 ? 0 : this.totalTokens / this.size();
+    }
+}
+
+class BM25SearchEngine {
+    docs = new DocumentStore();
+    index = new InvertedIndex();
+
+    constructor(public k1 = 1.2, public b = 0.75) { }
+
+    tokenize(text: string): string[] {
         return text.toLowerCase().match(/\b\w+\b/g) || [];
     }
+
+    calculateIdf(term: string): number {
+        const postings = this.index.get(term);
+        const df = postings.length;
+        if (df === 0) return 0;
+        return Math.log((this.docs.size() - df + 0.5) / (df + 0.5) + 1);
+    }
+
+    calculateBM25(tf: number, idf: number, docLen: number, avgdl: number): number {
+        if (tf <= 0 || idf <= 0) return 0;
+        const safeAvgdl = avgdl === 0 ? 1 : avgdl;
+
+        const numerator = tf * (this.k1 + 1);
+        const denominator = tf + this.k1 * (1 - this.b + this.b * (docLen / safeAvgdl));
+        return idf * (numerator / denominator);
+    }
+
     addDocument(docId: number, text: string) {
-        const tokens = this.tokenize(text)
-        this.docs.set(docId, tokens)
-        const tfCounts = new Map();
+        const tokens = this.tokenize(text);
+        this.docs.add(docId, text, tokens);
+
+        const tfCounts = new Map<string, number>();
         for (const token of tokens) {
             tfCounts.set(token, (tfCounts.get(token) || 0) + 1);
         }
+
         for (const [term, tf] of tfCounts.entries()) {
-            this.index.add(term, { docId, tf })
+            this.index.add(term, { docId, tf });
         }
-        let totalLength = 0;
-        for (const tokens of this.docs.values()) {
-            totalLength += tokens.length;
-        }
-        if (this.docs.size <= 0) {
-            return;
-        }
-        this.avgdl = totalLength / this.docs.size;
     }
-    docLength(docId: number) {
-        const tokens = this.docs.get(docId) || []
-        return tokens.length
-    }
-    size() {
-        return this.docs.size;
-    }
-}
 
-class FulltextSearch {
-    docs: Documents;
-    k1: number;
-    b: number;
-    constructor(k1 = 1.2, b = 0.75) {
-        this.docs = new Documents();
-        this.k1 = k1;
-        this.b = b;
-    }
-    calculateIdf(term: string) {
-        const postings = this.docs.index.get(term) || [];
-        const df = postings.length;
-        if (df === 0) return 0;
-
-        // สูตร IDF เดียวกับมาตรฐาน Lucene / Python
-        return Math.log((this.docs.size() - df + 0.5) / (df + 0.5) + 1);
-    }
-    search(query: string) {
-        const queryTokens = this.docs.tokenize(query);
-        const scores = new Map();
+    search(query: string): BM25Response[] {
+        const queryTokens = this.tokenize(query);
+        const results = new Map<number, Omit<BM25Response, "docId">>();
+        const avgdl = this.docs.getAvgdl();
 
         for (const term of queryTokens) {
-            const postings = this.docs.index.get(term);
-            if (!postings) continue;
+            const postings = this.index.get(term);
+            if (postings.length === 0) continue;
 
             const idf = this.calculateIdf(term);
 
             for (const { docId, tf } of postings) {
-                const docLen = this.docs.docLength(docId);
+                const dl = this.docs.getLength(docId);
+                const score = this.calculateBM25(tf, idf, dl, avgdl);
+                const prev = results.get(docId);
 
-                // สูตร BM25 Weight
-                const numerator = tf * (this.k1 + 1);
-                const denominator = tf + this.k1 * (1 - this.b + this.b * (docLen / this.docs.avgdl));
-                const score = idf * (numerator / denominator);
-
-                scores.set(docId, (scores.get(docId) || 0) + score);
+                results.set(docId, {
+                    score: (prev?.score || 0) + score,
+                    tf: (prev?.tf || 0) + tf,
+                    idf: (prev?.idf || 0) + idf,
+                    k1: this.k1,
+                    b: this.b,
+                    dl,
+                    avgdl,
+                    query,
+                    source: this.docs.getSource(docId),
+                });
             }
         }
 
-        // เรียงคะแนนจากมากไปน้อย
-        return Array.from(scores.entries())
-            .sort((a, b) => b[1] - a[1])
-            .map(([docId, score]) => ({ docId, score }));
+        return Array.from(results.entries())
+            .sort((a, b) => b[1].score - a[1].score)
+            .map(([docId, data]) => ({ docId, ...data }));
     }
 }
-
 const corpus = {
     1: "elasticsearch is a search engine",
     2: "search search search is fun",
     3: "kibana shows data in charts",
-    4: "learn python for data science"
+    4: "learn python for data science",
 };
 
-const engine = new FulltextSearch();
-for (const [id, text] of Object.entries(corpus)) {
-    engine.docs.addDocument(Number(id), text);
+const engine = new BM25SearchEngine();
+for (const [docId, text] of Object.entries(corpus)) {
+    engine.addDocument(Number(docId), text);
 }
 
-console.log(engine.search("search"))
+console.log(engine.search("search"));
